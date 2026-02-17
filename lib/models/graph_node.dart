@@ -1,0 +1,50 @@
+import 'package:flutter/material.dart';
+
+class GraphNode {
+  String id;
+  Offset position;
+  Offset velocity;
+  String label;
+
+  double mass;
+  double radius;
+
+  TextPainter? textPainter;
+
+  GraphNode({
+    required this.id,
+    required this.position,
+    required this.label,
+    this.velocity = Offset.zero,
+    this.mass = 1.0,
+    this.radius = 18.0,
+  }) {
+    _updateTextPainter();
+  }
+
+  void _updateTextPainter() {
+    textPainter = TextPainter(
+      text: TextSpan(
+        text: label,
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 11 + (mass * 1.5),
+          fontWeight: FontWeight.w500,
+          shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+      textAlign: TextAlign.center,
+    )..layout();
+  }
+
+  void updateSize(int degree) {
+    const baseRadius = 18.0;
+    const baseMass = 1.0;
+
+    radius = baseRadius + (degree * 2.0);
+    mass = baseMass + (degree * 0.5);
+
+    _updateTextPainter();
+  }
+}
