@@ -8,6 +8,28 @@ class GraphPainter extends CustomPainter {
   final String? selectedNodeId;
   final Rect? viewport;
 
+  // Pre-allocated Paint objects — avoids ~240 allocations/sec at 60fps
+  final Paint _linePaint = Paint()
+    ..color = Colors.grey.withOpacity(0.4)
+    ..strokeWidth = 2.5
+    ..style = PaintingStyle.stroke;
+
+  final Paint _nodePaint = Paint()
+    ..color = const Color(0xFF9C27B0)
+    ..style = PaintingStyle.fill;
+
+  final Paint _selectedNodePaint = Paint()
+    ..color = Colors.yellowAccent
+    ..style = PaintingStyle.fill;
+
+  final Paint _selectedGlowPaint = Paint()
+    ..color = Colors.yellowAccent.withOpacity(0.3);
+
+  final Paint _nodeBorderPaint = Paint()
+    ..color = Colors.white
+    ..strokeWidth = 2.0
+    ..style = PaintingStyle.stroke;
+
   GraphPainter({
     required this.nodes,
     required this.links,
@@ -18,24 +40,6 @@ class GraphPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final linePaint = Paint()
-      ..color = Colors.grey.withOpacity(0.4)
-      ..strokeWidth = 2.5
-      ..style = PaintingStyle.stroke;
-
-    final nodePaint = Paint()
-      ..color = const Color(0xFF9C27B0)
-      ..style = PaintingStyle.fill;
-
-    final selectedNodePaint = Paint()
-      ..color = Colors.yellowAccent
-      ..style = PaintingStyle.fill;
-
-    final nodeBorderPaint = Paint()
-      ..color = Colors.white
-      ..strokeWidth = 2.0
-      ..style = PaintingStyle.stroke;
-
     // Draw links first
     for (final link in links) {
       final source = nodes[link.sourceId];
@@ -49,7 +53,7 @@ class GraphPainter extends CustomPainter {
             continue;
           }
         }
-        canvas.drawLine(source.position, target.position, linePaint);
+        canvas.drawLine(source.position, target.position, _linePaint);
       }
     }
 
@@ -59,7 +63,6 @@ class GraphPainter extends CustomPainter {
       if (viewport != null) {
         // Adding radius margin to avoid popping
         if (!viewport!.contains(node.position)) {
-          // Check if it's strictly outside (considering radius)
           // Simple AABB check:
           final nodeRect = Rect.fromCircle(
             center: node.position,
@@ -72,17 +75,13 @@ class GraphPainter extends CustomPainter {
       }
 
       if (node.id == selectedNodeId) {
-        canvas.drawCircle(
-          node.position,
-          node.radius + 4.0,
-          Paint()..color = Colors.yellowAccent.withOpacity(0.3),
-        );
-        canvas.drawCircle(node.position, node.radius, selectedNodePaint);
+        canvas.drawCircle(node.position, node.radius + 4.0, _selectedGlowPaint);
+        canvas.drawCircle(node.position, node.radius, _selectedNodePaint);
       } else {
-        canvas.drawCircle(node.position, node.radius, nodePaint);
+        canvas.drawCircle(node.position, node.radius, _nodePaint);
       }
 
-      canvas.drawCircle(node.position, node.radius, nodeBorderPaint);
+      canvas.drawCircle(node.position, node.radius, _nodeBorderPaint);
 
       // Use cached TextPainter
       if (node.textPainter != null) {
@@ -95,5 +94,8 @@ class GraphPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant GraphPainter oldDelegate) => true;
+  bool shouldRepaint(covariant GraphPainter oldDelegate) {
+    return selectedNodeId != oldDelegate.selectedNodeId ||
+        viewport != oldDelegate.viewport;
+  }
 }

@@ -92,6 +92,9 @@ void physicsIsolateEntry(SendPort sendPort) {
   // Frame counter for message throttling
   int _frameCount = 0;
 
+  // Reusable force accumulator — avoids Offset allocations
+  final ForceAccum _forceAccum = ForceAccum();
+
   void _recomputeDegrees() {
     _nodeDegrees = {};
     for (final link in links) {
@@ -105,8 +108,6 @@ void physicsIsolateEntry(SendPort sendPort) {
     loopTimer?.cancel();
     loopTimer = null;
   }
-
-  // step() is declared next (see below), then _startTimer references it
 
   void step() {
     if (nodes.isEmpty) return;
@@ -123,12 +124,10 @@ void physicsIsolateEntry(SendPort sendPort) {
     double maxX = double.negativeInfinity, maxY = double.negativeInfinity;
 
     for (var node in nodes.values) {
-      final dx = node.position.dx;
-      final dy = node.position.dy;
-      if (dx < minX) minX = dx;
-      if (dy < minY) minY = dy;
-      if (dx > maxX) maxX = dx;
-      if (dy > maxY) maxY = dy;
+      if (node.px < minX) minX = node.px;
+      if (node.py < minY) minY = node.py;
+      if (node.px > maxX) maxX = node.px;
+      if (node.py > maxY) maxY = node.py;
     }
 
     final boundary = Rect.fromLTRB(
@@ -143,34 +142,43 @@ void physicsIsolateEntry(SendPort sendPort) {
       quadtree.insert(node);
     }
 
+    // Many-body forces via Barnes-Hut
     for (var node in nodes.values) {
       if (node.id == draggingNodeId) continue;
 
-      final force = quadtree.calculateForce(
+      quadtree.calculateForceScalar(
         node,
         config.manyBodyStrength,
         alpha,
+        _forceAccum,
         distanceMin: config.manyBodyDistanceMin,
         distanceMax: config.manyBodyDistanceMax,
       );
-      node.velocity += force;
+      node.vx += _forceAccum.x;
+      node.vy += _forceAccum.y;
     }
 
     // Merged loop: linked repulsion correction + link spring forces
     // Computes delta/distance once per link pair instead of twice
+    final velocityDecayFactor = 1.0 - config.velocityDecay;
+
     for (final link in links) {
       final n1 = nodes[link.sourceId];
       final n2 = nodes[link.targetId];
       if (n1 == null || n2 == null) continue;
       if (n1.id == n2.id) continue;
 
-      Offset delta = n2.position - n1.position;
-      double distance = delta.distance;
+      double dx = n2.px - n1.px;
+      double dy = n2.py - n1.py;
+      double distance = sqrt(dx * dx + dy * dy);
 
       if (distance == 0) {
         distance = 0.1;
-        delta = const Offset(0.1, 0);
+        dx = 0.1;
+        dy = 0;
       }
+
+      final invDist = 1.0 / distance;
 
       // --- Linked repulsion correction ---
       if (distance <= config.manyBodyDistanceMax &&
@@ -180,20 +188,25 @@ void physicsIsolateEntry(SendPort sendPort) {
             : distance;
         final repulsionApprox =
             config.manyBodyStrength * alpha * n2.mass / clampedDist;
-        // Use already-computed distance for normalization
-        final correction =
-            (delta / distance) *
-            repulsionApprox *
-            config.linkedRepulsionReduction;
+        final corrX =
+            dx * invDist * repulsionApprox * config.linkedRepulsionReduction;
+        final corrY =
+            dy * invDist * repulsionApprox * config.linkedRepulsionReduction;
 
-        if (n1.id != draggingNodeId) n1.velocity -= correction;
-        if (n2.id != draggingNodeId) n2.velocity += correction;
+        if (n1.id != draggingNodeId) {
+          n1.vx -= corrX;
+          n1.vy -= corrY;
+        }
+        if (n2.id != draggingNodeId) {
+          n2.vx += corrX;
+          n2.vy += corrY;
+        }
       }
 
       // --- Link spring force ---
       final displacement =
-          (distance - config.linkDistance) /
-          distance *
+          (distance - config.linkDistance) *
+          invDist *
           alpha *
           config.linkStrength;
 
@@ -202,44 +215,49 @@ void physicsIsolateEntry(SendPort sendPort) {
       final bias = sourceDegree / (sourceDegree + targetDegree);
 
       if (n2.id != draggingNodeId) {
-        n2.velocity -= delta * displacement * bias;
+        n2.vx -= dx * displacement * bias;
+        n2.vy -= dy * displacement * bias;
       }
       if (n1.id != draggingNodeId) {
-        n1.velocity += delta * displacement * (1 - bias);
+        n1.vx += dx * displacement * (1 - bias);
+        n1.vy += dy * displacement * (1 - bias);
       }
     }
 
+    // Gravity force
     for (final node in nodes.values) {
       if (node.id == draggingNodeId) continue;
 
-      final dist = node.position.distance;
+      final dist = sqrt(node.px * node.px + node.py * node.py);
       // Soft non-linear scaling: sqrt(dist / scale)
-      // Resulting force: F ∝ dist * sqrt(dist) = dist^1.5
       final scaling = sqrt(dist / config.gravityDistanceScale);
+      final factor = config.gravityStrength * alpha * sqrt(node.mass) * scaling;
 
-      final gravity =
-          node.position *
-          config.gravityStrength *
-          alpha *
-          sqrt(node.mass) *
-          scaling;
-      node.velocity -= gravity;
+      node.vx -= node.px * factor;
+      node.vy -= node.py * factor;
     }
 
+    // Apply velocity and decay
     for (final node in nodes.values) {
       if (node.id == draggingNodeId) {
-        node.velocity = Offset.zero;
+        node.vx = 0;
+        node.vy = 0;
         continue;
       }
 
-      node.position += node.velocity;
-      node.velocity *= (1.0 - config.velocityDecay);
+      node.px += node.vx;
+      node.py += node.vy;
+      node.vx *= velocityDecayFactor;
+      node.vy *= velocityDecayFactor;
     }
 
     // Throttle messages: send every other frame to reduce main isolate load
     _frameCount++;
     if (_frameCount % 2 == 0) {
-      final updates = {for (var n in nodes.values) n.id: n.position};
+      final updates = <String, Offset>{};
+      for (var n in nodes.values) {
+        updates[n.id] = Offset(n.px, n.py);
+      }
       sendPort.send(PhysicsMessage(PhysicsCommand.updateNodes, updates));
     }
   }
@@ -319,8 +337,11 @@ void physicsIsolateEntry(SendPort sendPort) {
           if (id != null) {
             draggingNodeId = id;
             if (map.containsKey('position')) {
-              nodes[id]?.position = map['position'] as Offset;
-              nodes[id]?.velocity = Offset.zero;
+              final pos = map['position'] as Offset;
+              nodes[id]?.px = pos.dx;
+              nodes[id]?.py = pos.dy;
+              nodes[id]?.vx = 0;
+              nodes[id]?.vy = 0;
             }
 
             _reheat();

@@ -1,9 +1,11 @@
-import 'dart:ui';
+import 'dart:math';
 import '../models/physics_node.dart';
+import 'dart:ui';
 
 class QuadtreeNode {
   Rect boundary;
-  Offset centerOfMass = Offset.zero;
+  double comX = 0; // center of mass X
+  double comY = 0; // center of mass Y
   double totalMass = 0;
 
   // 4 separate fields instead of List — avoids List allocation & improves locality
@@ -53,6 +55,18 @@ class QuadtreeNode {
   }
 }
 
+/// Mutable force accumulator — avoids Offset allocations in recursion.
+/// Safe for single-threaded use in isolate.
+class ForceAccum {
+  double x = 0;
+  double y = 0;
+
+  void reset() {
+    x = 0;
+    y = 0;
+  }
+}
+
 class Quadtree {
   QuadtreeNode? root;
   final Rect boundary;
@@ -61,7 +75,12 @@ class Quadtree {
   Quadtree(this.boundary, {this.theta = 0.9});
 
   void insert(PhysicsNode node) {
-    if (!boundary.contains(node.position)) return;
+    if (node.px < boundary.left ||
+        node.px > boundary.right ||
+        node.py < boundary.top ||
+        node.py > boundary.bottom) {
+      return;
+    }
     root = _insertRecursive(root, boundary, node);
   }
 
@@ -73,15 +92,19 @@ class Quadtree {
     if (node == null) {
       final newNode = QuadtreeNode(boundary);
       newNode.body = body;
-      newNode.centerOfMass = body.position;
+      newNode.comX = body.px;
+      newNode.comY = body.py;
       newNode.totalMass = body.mass;
       return newNode;
     }
 
     if (node.isLeaf && node.body != null) {
-      if ((node.body!.position - body.position).distance < 0.001) {
+      final dx = node.body!.px - body.px;
+      final dy = node.body!.py - body.py;
+      if (dx * dx + dy * dy < 0.000001) {
         // Near-coincident bodies — jitter slightly to avoid infinite subdivision
-        body.position = body.position + const Offset(0.1, 0.1);
+        body.px += 0.1;
+        body.py += 0.1;
       }
 
       final oldBody = node.body!;
@@ -103,8 +126,8 @@ class Quadtree {
 
     // 0: TL, 1: TR, 2: BL, 3: BR
     int index = 0;
-    if (body.position.dx > cx) index += 1;
-    if (body.position.dy > cy) index += 2;
+    if (body.px > cx) index += 1;
+    if (body.py > cy) index += 2;
 
     double x = node.boundary.left;
     double y = node.boundary.top;
@@ -128,129 +151,131 @@ class Quadtree {
     final c0 = node.child0;
     if (c0 != null) {
       massSum += c0.totalMass;
-      momentX += c0.centerOfMass.dx * c0.totalMass;
-      momentY += c0.centerOfMass.dy * c0.totalMass;
+      momentX += c0.comX * c0.totalMass;
+      momentY += c0.comY * c0.totalMass;
     }
     final c1 = node.child1;
     if (c1 != null) {
       massSum += c1.totalMass;
-      momentX += c1.centerOfMass.dx * c1.totalMass;
-      momentY += c1.centerOfMass.dy * c1.totalMass;
+      momentX += c1.comX * c1.totalMass;
+      momentY += c1.comY * c1.totalMass;
     }
     final c2 = node.child2;
     if (c2 != null) {
       massSum += c2.totalMass;
-      momentX += c2.centerOfMass.dx * c2.totalMass;
-      momentY += c2.centerOfMass.dy * c2.totalMass;
+      momentX += c2.comX * c2.totalMass;
+      momentY += c2.comY * c2.totalMass;
     }
     final c3 = node.child3;
     if (c3 != null) {
       massSum += c3.totalMass;
-      momentX += c3.centerOfMass.dx * c3.totalMass;
-      momentY += c3.centerOfMass.dy * c3.totalMass;
+      momentX += c3.comX * c3.totalMass;
+      momentY += c3.comY * c3.totalMass;
     }
 
     if (massSum > 0) {
       node.totalMass = massSum;
-      node.centerOfMass = Offset(momentX / massSum, momentY / massSum);
+      node.comX = momentX / massSum;
+      node.comY = momentY / massSum;
     }
   }
 
-  /// D3-style many-body force using Barnes-Hut approximation.
-  /// Uses inverse-linear falloff: force ∝ strength * alpha / distance
+  /// Calculates D3-style many-body force using Barnes-Hut approximation.
+  /// Accumulates result into [accum] to avoid Offset allocations.
   /// [strength] should be negative for repulsion.
-  Offset calculateForce(
+  void calculateForceScalar(
     PhysicsNode target,
     double strength,
-    double alpha, {
+    double alpha,
+    ForceAccum accum, {
     double distanceMin = 1.0,
     double distanceMax = 1000.0,
   }) {
-    return _calculateForceRecursive(
-      root,
-      target,
-      strength,
-      alpha,
-      distanceMin,
-      distanceMax,
-    );
+    accum.reset();
+    _addForce(root, target, strength, alpha, distanceMin, distanceMax, accum);
   }
 
-  Offset _calculateForceRecursive(
+  void _addForce(
     QuadtreeNode? node,
     PhysicsNode target,
     double strength,
     double alpha,
     double distanceMin,
     double distanceMax,
+    ForceAccum accum,
   ) {
-    if (node == null || node.totalMass == 0) return Offset.zero;
+    if (node == null || node.totalMass == 0) return;
 
-    Offset delta = node.centerOfMass - target.position;
-    double distance = delta.distance;
+    double dx = node.comX - target.px;
+    double dy = node.comY - target.py;
+    double distSq = dx * dx + dy * dy;
 
-    if (distance == 0) return Offset.zero;
+    if (distSq == 0) return;
 
+    double distance = sqrt(distSq);
     double width = node.boundary.width;
 
     if (node.isLeaf || (width / distance < theta)) {
       // Skip self
-      if (node.isLeaf && node.body == target) return Offset.zero;
+      if (node.isLeaf && node.body == target) return;
 
       // Clamp distance
       if (distance < distanceMin) distance = distanceMin;
-      if (distance > distanceMax) return Offset.zero;
+      if (distance > distanceMax) return;
 
       // D3-style: force = strength * alpha * mass / distance
-      // strength is negative → repulsion pushes away from center of mass
       final forceValue = strength * alpha * node.totalMass / distance;
+      final invDist = 1.0 / distance;
 
-      // Use already-computed distance for normalization instead of delta.distance again
-      return (delta / distance) * forceValue;
+      accum.x += dx * invDist * forceValue;
+      accum.y += dy * invDist * forceValue;
+      return;
     }
 
     // Recurse into children — inlined, no List iteration
-    Offset totalForce = Offset.zero;
     if (node.child0 != null) {
-      totalForce += _calculateForceRecursive(
+      _addForce(
         node.child0,
         target,
         strength,
         alpha,
         distanceMin,
         distanceMax,
+        accum,
       );
     }
     if (node.child1 != null) {
-      totalForce += _calculateForceRecursive(
+      _addForce(
         node.child1,
         target,
         strength,
         alpha,
         distanceMin,
         distanceMax,
+        accum,
       );
     }
     if (node.child2 != null) {
-      totalForce += _calculateForceRecursive(
+      _addForce(
         node.child2,
         target,
         strength,
         alpha,
         distanceMin,
         distanceMax,
+        accum,
       );
     }
     if (node.child3 != null) {
-      totalForce += _calculateForceRecursive(
+      _addForce(
         node.child3,
         target,
         strength,
         alpha,
         distanceMin,
         distanceMax,
+        accum,
       );
     }
-    return totalForce;
   }
 }

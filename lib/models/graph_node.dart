@@ -11,6 +11,7 @@ class GraphNode {
   double radius;
 
   TextPainter? textPainter;
+  double _lastMass = -1;
 
   GraphNode({
     required this.id,
@@ -20,6 +21,7 @@ class GraphNode {
     this.mass = 1.0,
     this.radius = 18.0,
   }) {
+    _lastMass = mass;
     _updateTextPainter();
   }
 
@@ -46,6 +48,10 @@ class GraphNode {
     radius = baseRadius + (degree * 1.1);
     mass = baseMass + (degree * AppConstants.connectionMassModifier);
 
-    _updateTextPainter();
+    // Only rebuild TextPainter if mass changed (affects fontSize)
+    if (mass != _lastMass) {
+      _lastMass = mass;
+      _updateTextPainter();
+    }
   }
 }

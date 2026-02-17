@@ -251,7 +251,6 @@ class _GraphScreenState extends State<GraphScreen>
                       }
 
                       _physicsEngine.updateLinks(links);
-                      _physicsEngine.updateLinks(links);
                       if (DebugConstants.enableRendererLogging) {
                         _logger.logLinkCreation(
                           _selectedNodeForLink!,
@@ -336,55 +335,47 @@ class _GraphScreenState extends State<GraphScreen>
                 child: SizedBox(
                   width: 20000,
                   height: 20000,
-                  child: SizedBox(
-                    width: 20000,
-                    height: 20000,
-                    child: Builder(
-                      builder: (context) {
-                        return AnimatedBuilder(
-                          animation: _transformationController,
-                          builder: (context, _) {
-                            final matrix = _transformationController.value;
-                            final translation = matrix.getTranslation();
-                            final scale = matrix.getMaxScaleOnAxis();
-                            final viewport = Rect.fromLTWH(
-                              -translation.x / scale,
-                              -translation.y / scale,
-                              MediaQuery.of(context).size.width / scale,
-                              MediaQuery.of(context).size.height / scale,
-                            ).inflate(100);
+                  child: Builder(
+                    builder: (context) {
+                      return AnimatedBuilder(
+                        animation: _transformationController,
+                        builder: (context, _) {
+                          final matrix = _transformationController.value;
+                          final translation = matrix.getTranslation();
+                          final scale = matrix.getMaxScaleOnAxis();
+                          final viewport = Rect.fromLTWH(
+                            -translation.x / scale,
+                            -translation.y / scale,
+                            MediaQuery.of(context).size.width / scale,
+                            MediaQuery.of(context).size.height / scale,
+                          ).inflate(100);
 
-                            if (DebugConstants.enableRendererLogging) {
-                              // Calculate rendered nodes count
-                              int renderedCount = 0;
-                              for (final node in nodes.values) {
-                                // Simple AABB check matching GraphPainter
-                                final nodeRect = Rect.fromCircle(
-                                  center: node.position,
-                                  radius: node.radius + 20,
-                                );
-                                if (viewport.overlaps(nodeRect)) {
-                                  renderedCount++;
-                                }
-                              }
-                              // We use print here as the LoggerService might not have a specific method for this
-                              // or we can add one. For now using debugPrint or similar.
-                              debugPrint(
-                                'Rendered nodes: $renderedCount / ${nodes.length}',
+                          if (DebugConstants.enableRendererLogging) {
+                            int renderedCount = 0;
+                            for (final node in nodes.values) {
+                              final nodeRect = Rect.fromCircle(
+                                center: node.position,
+                                radius: node.radius + 20,
                               );
+                              if (viewport.overlaps(nodeRect)) {
+                                renderedCount++;
+                              }
                             }
-
-                            return GraphRenderer(
-                              nodes: nodes,
-                              links: links,
-                              tickNotifier: _graphTickNotifier,
-                              selectedNodeId: _selectedNodeForLink,
-                              viewport: viewport,
+                            debugPrint(
+                              'Rendered nodes: $renderedCount / ${nodes.length}',
                             );
-                          },
-                        );
-                      },
-                    ),
+                          }
+
+                          return GraphRenderer(
+                            nodes: nodes,
+                            links: links,
+                            tickNotifier: _graphTickNotifier,
+                            selectedNodeId: _selectedNodeForLink,
+                            viewport: viewport,
+                          );
+                        },
+                      );
+                    },
                   ),
                 ),
               ),
