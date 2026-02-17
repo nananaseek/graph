@@ -47,6 +47,7 @@ class PhysicsEngine {
       linkStrength: AppConstants.linkStrength,
       linkDistance: AppConstants.linkDistance,
       gravityStrength: AppConstants.gravityStrength,
+      gravityDistanceScale: AppConstants.gravityDistanceScale,
     );
 
     final physicsNodes = nodes.values
@@ -127,13 +128,10 @@ class PhysicsEngine {
     _sendPort!.send(PhysicsMessage(PhysicsCommand.touchNode, {'id': id}));
   }
 
-  void endDrag([Offset? velocity]) {
+  void endDrag() {
     if (_sendPort == null) return;
     _sendPort!.send(
-      PhysicsMessage(PhysicsCommand.touchNode, {
-        'id': null,
-        if (velocity != null) 'velocity': velocity,
-      }),
+      PhysicsMessage(PhysicsCommand.touchNode, const {'id': null}),
     );
   }
 

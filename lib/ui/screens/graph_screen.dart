@@ -7,7 +7,7 @@ import '../../models/graph_link.dart';
 import '../../logic/physics_engine.dart';
 import '../../core/service_locator.dart';
 import '../../services/logging_service.dart';
-import '../../core/constants.dart';
+import '../../core/debug_constants.dart';
 
 import '../widgets/graph_renderer.dart';
 
@@ -32,7 +32,6 @@ class _GraphScreenState extends State<GraphScreen>
   final _logger = getIt<LoggingService>();
   StreamSubscription? _physicsSubscription;
   final ValueNotifier<int> _graphTickNotifier = ValueNotifier(0);
-  VelocityTracker? _velocityTracker;
 
   String? _draggingNodeId;
   bool _isSidebarOpen = false;
@@ -47,6 +46,29 @@ class _GraphScreenState extends State<GraphScreen>
     _addNode(const Offset(100, 100), "Note A");
     _addNode(const Offset(-100, 100), "Note B");
     _addNode(const Offset(150, 0), "Note C");
+
+    // Create Mega Hub with 30 connections
+    final hubId = _uuid.v4();
+    final hubNode = GraphNode(
+      id: hubId,
+      position: const Offset(0, -300),
+      label: "Mega Hub",
+    );
+    nodes[hubId] = hubNode;
+    _physicsEngine.addNode(hubNode);
+
+    for (int i = 1; i <= 30; i++) {
+      final leafId = _uuid.v4();
+      final leafNode = GraphNode(
+        id: leafId,
+        position: Offset((i * 10.0) - 150, -400),
+        label: "L $i",
+      );
+      nodes[leafId] = leafNode;
+      _physicsEngine.addNode(leafNode);
+      links.add(GraphLink(hubId, leafId));
+    }
+    _physicsEngine.updateLinks(links);
 
     Future.delayed(Duration.zero, () {
       if (nodes.isEmpty) return;
@@ -103,7 +125,9 @@ class _GraphScreenState extends State<GraphScreen>
       );
       nodes[id] = node;
       _physicsEngine.addNode(node);
-      _logger.logNodeCreation(id);
+      if (DebugConstants.enableRendererLogging) {
+        _logger.logNodeCreation(id);
+      }
     });
   }
 
@@ -115,7 +139,9 @@ class _GraphScreenState extends State<GraphScreen>
       if (_selectedNodeForLink == id) _selectedNodeForLink = null;
 
       _physicsEngine.removeNode(id);
-      _logger.logNodeDeletion(id);
+      if (DebugConstants.enableRendererLogging) {
+        _logger.logNodeDeletion(id);
+      }
       _recalculateNodeSizes();
     });
   }
@@ -150,10 +176,12 @@ class _GraphScreenState extends State<GraphScreen>
     return (screenPosition - Offset(translation.x, translation.y)) / scale;
   }
 
-  void _cancelDrag([Offset? velocity]) {
+  void _cancelDrag() {
     if (_draggingNodeId != null) {
-      _physicsEngine.endDrag(velocity);
-      _logger.logNodeDragEnd(_draggingNodeId!);
+      _physicsEngine.endDrag();
+      if (DebugConstants.enableNodeTapLogging) {
+        _logger.logNodeDragEnd(_draggingNodeId!);
+      }
       setState(() => _draggingNodeId = null);
     }
   }
@@ -178,22 +206,15 @@ class _GraphScreenState extends State<GraphScreen>
               final localTap = _getLocalOffset(details.localPosition);
               final hitNodeId = _hitTest(localTap);
               if (hitNodeId != null) {
-                _velocityTracker = VelocityTracker.withKind(details.kind);
-                _velocityTracker?.addPosition(
-                  details.timeStamp,
-                  details.localPosition,
-                );
                 setState(() => _draggingNodeId = hitNodeId);
                 _physicsEngine.startDrag(hitNodeId);
-                _logger.logNodeDragStart(hitNodeId);
+                if (DebugConstants.enableNodeTapLogging) {
+                  _logger.logNodeDragStart(hitNodeId);
+                }
               }
             },
             onPointerMove: (PointerMoveEvent details) {
               if (_draggingNodeId != null) {
-                _velocityTracker?.addPosition(
-                  details.timeStamp,
-                  details.localPosition,
-                );
                 final localTap = _getLocalOffset(details.localPosition);
 
                 final node = nodes[_draggingNodeId];
@@ -204,12 +225,7 @@ class _GraphScreenState extends State<GraphScreen>
               }
             },
             onPointerUp: (PointerUpEvent details) {
-              final velocity =
-                  _velocityTracker?.getVelocity().pixelsPerSecond ??
-                  Offset.zero;
-              final scale = _transformationController.value.getMaxScaleOnAxis();
-              // Convert screen velocity to graph velocity
-              _cancelDrag((velocity / scale) * AppConstants.inertiaStrength);
+              _cancelDrag();
             },
             child: GestureDetector(
               onDoubleTapDown: (details) {
@@ -235,19 +251,29 @@ class _GraphScreenState extends State<GraphScreen>
                       }
 
                       _physicsEngine.updateLinks(links);
-                      _logger.logLinkCreation(_selectedNodeForLink!, hitNodeId);
+                      _physicsEngine.updateLinks(links);
+                      if (DebugConstants.enableRendererLogging) {
+                        _logger.logLinkCreation(
+                          _selectedNodeForLink!,
+                          hitNodeId,
+                        );
+                      }
 
                       _selectedNodeForLink = null;
                       _recalculateNodeSizes();
                     });
                   } else {
                     if (_selectedNodeForLink == hitNodeId) {
-                      _logger.logNodeDeselection(_selectedNodeForLink!);
+                      if (DebugConstants.enableNodeSelectionLogging) {
+                        _logger.logNodeDeselection(_selectedNodeForLink!);
+                      }
                       setState(() => _selectedNodeForLink = null);
                     } else {
                       // Select node for linking (or re-select)
                       setState(() => _selectedNodeForLink = hitNodeId);
-                      _logger.logNodeSelection(hitNodeId);
+                      if (DebugConstants.enableNodeSelectionLogging) {
+                        _logger.logNodeSelection(hitNodeId);
+                      }
                     }
                   }
                 } else {
@@ -273,10 +299,12 @@ class _GraphScreenState extends State<GraphScreen>
                         links.removeAt(existingLinkIndex);
                       } else {
                         links.add(GraphLink(_selectedNodeForLink!, hitNodeId));
-                        _logger.logLinkCreation(
-                          _selectedNodeForLink!,
-                          hitNodeId,
-                        );
+                        if (DebugConstants.enableRendererLogging) {
+                          _logger.logLinkCreation(
+                            _selectedNodeForLink!,
+                            hitNodeId,
+                          );
+                        }
                       }
 
                       _physicsEngine.updateLinks(links);
@@ -285,7 +313,9 @@ class _GraphScreenState extends State<GraphScreen>
                       _recalculateNodeSizes();
                     });
                   } else if (hitNodeId == null) {
-                    _logger.logNodeDeselection(_selectedNodeForLink!);
+                    if (DebugConstants.enableNodeSelectionLogging) {
+                      _logger.logNodeDeselection(_selectedNodeForLink!);
+                    }
                     setState(() => _selectedNodeForLink = null);
                   }
                 }
@@ -323,6 +353,26 @@ class _GraphScreenState extends State<GraphScreen>
                               MediaQuery.of(context).size.width / scale,
                               MediaQuery.of(context).size.height / scale,
                             ).inflate(100);
+
+                            if (DebugConstants.enableRendererLogging) {
+                              // Calculate rendered nodes count
+                              int renderedCount = 0;
+                              for (final node in nodes.values) {
+                                // Simple AABB check matching GraphPainter
+                                final nodeRect = Rect.fromCircle(
+                                  center: node.position,
+                                  radius: node.radius + 20,
+                                );
+                                if (viewport.overlaps(nodeRect)) {
+                                  renderedCount++;
+                                }
+                              }
+                              // We use print here as the LoggerService might not have a specific method for this
+                              // or we can add one. For now using debugPrint or similar.
+                              debugPrint(
+                                'Rendered nodes: $renderedCount / ${nodes.length}',
+                              );
+                            }
 
                             return GraphRenderer(
                               nodes: nodes,

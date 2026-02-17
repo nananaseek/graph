@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/constants.dart';
 
 class GraphNode {
   String id;
@@ -42,8 +43,8 @@ class GraphNode {
     const baseRadius = 18.0;
     const baseMass = 1.0;
 
-    radius = baseRadius + (degree * 2.0);
-    mass = baseMass + (degree * 0.5);
+    radius = baseRadius + (degree * 1.1);
+    mass = baseMass + (degree * AppConstants.connectionMassModifier);
 
     _updateTextPainter();
   }

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:isolate';
 import 'dart:ui';
+import 'dart:math';
 
 import '../models/physics_node.dart';
 import 'quadtree.dart';
@@ -38,14 +39,17 @@ class PhysicsConfig {
   final double alphaDecay;
   final double alphaTarget;
   final double velocityDecay;
+
   final double manyBodyStrength;
   final double manyBodyDistanceMin;
   final double manyBodyDistanceMax;
   final double manyBodyTheta;
+
   final double linkedRepulsionReduction;
   final double linkStrength;
   final double linkDistance;
-  final double gravityStrength; // Gravity
+  final double gravityStrength;
+  final double gravityDistanceScale;
 
   const PhysicsConfig({
     this.alphaStart = 1.0,
@@ -61,6 +65,7 @@ class PhysicsConfig {
     this.linkStrength = 0.8,
     this.linkDistance = 70.0,
     this.gravityStrength = 0.1,
+    this.gravityDistanceScale = 500.0,
   });
 }
 
@@ -199,7 +204,17 @@ void physicsIsolateEntry(SendPort sendPort) {
     for (final node in nodes.values) {
       if (node.id == draggingNodeId) continue;
 
-      final gravity = node.position * config.gravityStrength * alpha;
+      final dist = node.position.distance;
+      // Soft non-linear scaling: sqrt(dist / scale)
+      // Resulting force: F \propto dist * sqrt(dist) = dist^1.5
+      final scaling = sqrt(dist / config.gravityDistanceScale);
+
+      final gravity =
+          node.position *
+          config.gravityStrength *
+          alpha *
+          sqrt(node.mass) *
+          scaling;
       node.velocity -= gravity;
     }
 
@@ -288,9 +303,6 @@ void physicsIsolateEntry(SendPort sendPort) {
 
             _reheat();
           } else {
-            if (map.containsKey('velocity') && draggingNodeId != null) {
-              nodes[draggingNodeId!]?.velocity = map['velocity'] as Offset;
-            }
             draggingNodeId = null;
           }
           break;
