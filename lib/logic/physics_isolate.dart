@@ -89,6 +89,9 @@ void physicsIsolateEntry(SendPort sendPort) {
   // State
   String? draggingNodeId;
 
+  // Frame counter for message throttling
+  int _frameCount = 0;
+
   void _recomputeDegrees() {
     _nodeDegrees = {};
     for (final link in links) {
@@ -97,9 +100,13 @@ void physicsIsolateEntry(SendPort sendPort) {
     }
   }
 
-  void _reheat() {
-    alpha = config.alphaStart;
+  // Stop timer — called when simulation converges
+  void _stopTimer() {
+    loopTimer?.cancel();
+    loopTimer = null;
   }
+
+  // step() is declared next (see below), then _startTimer references it
 
   void step() {
     if (nodes.isEmpty) return;
@@ -107,6 +114,8 @@ void physicsIsolateEntry(SendPort sendPort) {
     alpha += (config.alphaTarget - alpha) * config.alphaDecay;
 
     if (alpha < config.alphaMin) {
+      // Simulation converged — stop the timer to save CPU
+      _stopTimer();
       return;
     }
 
@@ -114,10 +123,12 @@ void physicsIsolateEntry(SendPort sendPort) {
     double maxX = double.negativeInfinity, maxY = double.negativeInfinity;
 
     for (var node in nodes.values) {
-      if (node.position.dx < minX) minX = node.position.dx;
-      if (node.position.dy < minY) minY = node.position.dy;
-      if (node.position.dx > maxX) maxX = node.position.dx;
-      if (node.position.dy > maxY) maxY = node.position.dy;
+      final dx = node.position.dx;
+      final dy = node.position.dy;
+      if (dx < minX) minX = dx;
+      if (dy < minY) minY = dy;
+      if (dx > maxX) maxX = dx;
+      if (dy > maxY) maxY = dy;
     }
 
     final boundary = Rect.fromLTRB(
@@ -145,59 +156,56 @@ void physicsIsolateEntry(SendPort sendPort) {
       node.velocity += force;
     }
 
+    // Merged loop: linked repulsion correction + link spring forces
+    // Computes delta/distance once per link pair instead of twice
     for (final link in links) {
       final n1 = nodes[link.sourceId];
       final n2 = nodes[link.targetId];
       if (n1 == null || n2 == null) continue;
+      if (n1.id == n2.id) continue;
 
       Offset delta = n2.position - n1.position;
       double distance = delta.distance;
-      if (distance < config.manyBodyDistanceMin) {
-        distance = config.manyBodyDistanceMin;
-      }
-      if (distance > config.manyBodyDistanceMax) continue;
 
-      // Approximate the repulsion that was applied between this pair
-      final repulsionApprox =
-          config.manyBodyStrength * alpha * n2.mass / distance;
-      final correction =
-          (delta / delta.distance) *
-          repulsionApprox *
-          config.linkedRepulsionReduction;
-
-      if (n1.id != draggingNodeId) n1.velocity -= correction;
-      if (n2.id != draggingNodeId) n2.velocity += correction;
-    }
-
-    for (final link in links) {
-      final source = nodes[link.sourceId];
-      final target = nodes[link.targetId];
-
-      if (source == null || target == null) continue;
-      if (source.id == target.id) continue;
-
-      Offset delta = target.position - source.position;
-      double distance = delta.distance;
       if (distance == 0) {
         distance = 0.1;
         delta = const Offset(0.1, 0);
       }
 
+      // --- Linked repulsion correction ---
+      if (distance <= config.manyBodyDistanceMax &&
+          config.linkedRepulsionReduction != 0) {
+        final clampedDist = distance < config.manyBodyDistanceMin
+            ? config.manyBodyDistanceMin
+            : distance;
+        final repulsionApprox =
+            config.manyBodyStrength * alpha * n2.mass / clampedDist;
+        // Use already-computed distance for normalization
+        final correction =
+            (delta / distance) *
+            repulsionApprox *
+            config.linkedRepulsionReduction;
+
+        if (n1.id != draggingNodeId) n1.velocity -= correction;
+        if (n2.id != draggingNodeId) n2.velocity += correction;
+      }
+
+      // --- Link spring force ---
       final displacement =
           (distance - config.linkDistance) /
           distance *
           alpha *
           config.linkStrength;
 
-      final sourceDegree = _nodeDegrees[source.id] ?? 1;
-      final targetDegree = _nodeDegrees[target.id] ?? 1;
+      final sourceDegree = _nodeDegrees[n1.id] ?? 1;
+      final targetDegree = _nodeDegrees[n2.id] ?? 1;
       final bias = sourceDegree / (sourceDegree + targetDegree);
 
-      if (target.id != draggingNodeId) {
-        target.velocity -= delta * displacement * bias;
+      if (n2.id != draggingNodeId) {
+        n2.velocity -= delta * displacement * bias;
       }
-      if (source.id != draggingNodeId) {
-        source.velocity += delta * displacement * (1 - bias);
+      if (n1.id != draggingNodeId) {
+        n1.velocity += delta * displacement * (1 - bias);
       }
     }
 
@@ -206,7 +214,7 @@ void physicsIsolateEntry(SendPort sendPort) {
 
       final dist = node.position.distance;
       // Soft non-linear scaling: sqrt(dist / scale)
-      // Resulting force: F \propto dist * sqrt(dist) = dist^1.5
+      // Resulting force: F ∝ dist * sqrt(dist) = dist^1.5
       final scaling = sqrt(dist / config.gravityDistanceScale);
 
       final gravity =
@@ -228,8 +236,24 @@ void physicsIsolateEntry(SendPort sendPort) {
       node.velocity *= (1.0 - config.velocityDecay);
     }
 
-    final updates = {for (var n in nodes.values) n.id: n.position};
-    sendPort.send(PhysicsMessage(PhysicsCommand.updateNodes, updates));
+    // Throttle messages: send every other frame to reduce main isolate load
+    _frameCount++;
+    if (_frameCount % 2 == 0) {
+      final updates = {for (var n in nodes.values) n.id: n.position};
+      sendPort.send(PhysicsMessage(PhysicsCommand.updateNodes, updates));
+    }
+  }
+
+  // Start or restart the simulation timer
+  void _startTimer() {
+    if (loopTimer != null && loopTimer!.isActive) return;
+    loopTimer?.cancel();
+    loopTimer = Timer.periodic(const Duration(milliseconds: 16), (_) => step());
+  }
+
+  void _reheat() {
+    alpha = config.alphaStart;
+    _startTimer();
   }
 
   // Message Loop
@@ -237,15 +261,11 @@ void physicsIsolateEntry(SendPort sendPort) {
     if (message is PhysicsMessage) {
       switch (message.command) {
         case PhysicsCommand.start:
-          loopTimer?.cancel();
-          loopTimer = Timer.periodic(
-            const Duration(milliseconds: 16),
-            (_) => step(),
-          );
+          _startTimer();
           break;
 
         case PhysicsCommand.stop:
-          loopTimer?.cancel();
+          _stopTimer();
           break;
 
         case PhysicsCommand.init:
@@ -253,7 +273,9 @@ void physicsIsolateEntry(SendPort sendPort) {
             final data = message.data as InitialData;
             nodes.clear();
             links.clear();
-            for (var n in data.nodes) nodes[n.id] = n;
+            for (var n in data.nodes) {
+              nodes[n.id] = n;
+            }
             links.addAll(data.links);
             if (data.config != null) {
               config = data.config!;

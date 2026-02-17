@@ -5,12 +5,52 @@ class QuadtreeNode {
   Rect boundary;
   Offset centerOfMass = Offset.zero;
   double totalMass = 0;
-  List<QuadtreeNode?> children = List.filled(4, null);
+
+  // 4 separate fields instead of List — avoids List allocation & improves locality
+  QuadtreeNode? child0; // TL
+  QuadtreeNode? child1; // TR
+  QuadtreeNode? child2; // BL
+  QuadtreeNode? child3; // BR
+
   PhysicsNode? body;
+
+  // Cached — updated on child insertion instead of recalculating via every()
+  bool isLeaf = true;
 
   QuadtreeNode(this.boundary);
 
-  bool get isLeaf => children.every((child) => child == null);
+  QuadtreeNode? childAt(int index) {
+    switch (index) {
+      case 0:
+        return child0;
+      case 1:
+        return child1;
+      case 2:
+        return child2;
+      case 3:
+        return child3;
+      default:
+        return null;
+    }
+  }
+
+  void setChild(int index, QuadtreeNode node) {
+    switch (index) {
+      case 0:
+        child0 = node;
+        break;
+      case 1:
+        child1 = node;
+        break;
+      case 2:
+        child2 = node;
+        break;
+      case 3:
+        child3 = node;
+        break;
+    }
+    isLeaf = false;
+  }
 }
 
 class Quadtree {
@@ -38,7 +78,7 @@ class Quadtree {
       return newNode;
     }
 
-    if (node.children.every((c) => c == null) && node.body != null) {
+    if (node.isLeaf && node.body != null) {
       if ((node.body!.position - body.position).distance < 0.001) {
         // Near-coincident bodies — jitter slightly to avoid infinite subdivision
         body.position = body.position + const Offset(0.1, 0.1);
@@ -74,11 +114,9 @@ class Quadtree {
     if (index == 1 || index == 3) x += w;
     if (index == 2 || index == 3) y += h;
 
-    node.children[index] = _insertRecursive(
-      node.children[index],
-      Rect.fromLTWH(x, y, w, h),
-      body,
-    );
+    final childRect = Rect.fromLTWH(x, y, w, h);
+    final result = _insertRecursive(node.childAt(index), childRect, body);
+    node.setChild(index, result);
   }
 
   void _updateMass(QuadtreeNode node) {
@@ -86,12 +124,30 @@ class Quadtree {
     double momentX = 0;
     double momentY = 0;
 
-    for (var child in node.children) {
-      if (child != null) {
-        massSum += child.totalMass;
-        momentX += child.centerOfMass.dx * child.totalMass;
-        momentY += child.centerOfMass.dy * child.totalMass;
-      }
+    // Inline iteration over 4 fields — no List/iterator overhead
+    final c0 = node.child0;
+    if (c0 != null) {
+      massSum += c0.totalMass;
+      momentX += c0.centerOfMass.dx * c0.totalMass;
+      momentY += c0.centerOfMass.dy * c0.totalMass;
+    }
+    final c1 = node.child1;
+    if (c1 != null) {
+      massSum += c1.totalMass;
+      momentX += c1.centerOfMass.dx * c1.totalMass;
+      momentY += c1.centerOfMass.dy * c1.totalMass;
+    }
+    final c2 = node.child2;
+    if (c2 != null) {
+      massSum += c2.totalMass;
+      momentX += c2.centerOfMass.dx * c2.totalMass;
+      momentY += c2.centerOfMass.dy * c2.totalMass;
+    }
+    final c3 = node.child3;
+    if (c3 != null) {
+      massSum += c3.totalMass;
+      momentX += c3.centerOfMass.dx * c3.totalMass;
+      momentY += c3.centerOfMass.dy * c3.totalMass;
     }
 
     if (massSum > 0) {
@@ -149,15 +205,45 @@ class Quadtree {
       // strength is negative → repulsion pushes away from center of mass
       final forceValue = strength * alpha * node.totalMass / distance;
 
-      // delta points from target to node → forceValue is negative → pushes away
-      return (delta / delta.distance) * forceValue;
+      // Use already-computed distance for normalization instead of delta.distance again
+      return (delta / distance) * forceValue;
     }
 
-    // Recurse into children
+    // Recurse into children — inlined, no List iteration
     Offset totalForce = Offset.zero;
-    for (var child in node.children) {
+    if (node.child0 != null) {
       totalForce += _calculateForceRecursive(
-        child,
+        node.child0,
+        target,
+        strength,
+        alpha,
+        distanceMin,
+        distanceMax,
+      );
+    }
+    if (node.child1 != null) {
+      totalForce += _calculateForceRecursive(
+        node.child1,
+        target,
+        strength,
+        alpha,
+        distanceMin,
+        distanceMax,
+      );
+    }
+    if (node.child2 != null) {
+      totalForce += _calculateForceRecursive(
+        node.child2,
+        target,
+        strength,
+        alpha,
+        distanceMin,
+        distanceMax,
+      );
+    }
+    if (node.child3 != null) {
+      totalForce += _calculateForceRecursive(
+        node.child3,
         target,
         strength,
         alpha,
