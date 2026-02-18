@@ -29,7 +29,7 @@ class GraphScreen extends StatefulWidget {
 }
 
 class _GraphScreenState extends State<GraphScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   final Map<String, GraphNode> nodes = {};
   final List<GraphLink> links = [];
 
@@ -55,6 +55,11 @@ class _GraphScreenState extends State<GraphScreen>
   final List<_NodeAppearSchedule> _appearSchedule = [];
   double _appearElapsedMs = 0.0;
   bool _appearAnimationActive = false;
+
+  // --- Node disappear animation ---
+  Ticker? _disappearTicker;
+  final Map<String, double> _disappearingNodes = {}; // nodeId → startMs
+  double _disappearElapsedMs = 0.0;
 
   @override
   void initState() {
@@ -207,6 +212,7 @@ class _GraphScreenState extends State<GraphScreen>
   @override
   void dispose() {
     _appearanceTicker?.dispose();
+    _disappearTicker?.dispose();
     _physicsSubscription?.cancel();
     _physicsEngine.dispose();
     _graphTickNotifier.dispose();
@@ -215,58 +221,102 @@ class _GraphScreenState extends State<GraphScreen>
   }
 
   void _addNode(Offset position, [String? text]) {
-    setState(() {
-      final id = _uuid.v4();
-      final node = GraphNode(
-        id: id,
-        position: position,
-        label: text ?? "Note ${nodes.length + 1}",
-      );
-      nodes[id] = node;
-      _physicsEngine.addNode(node);
-      if (DebugConstants.enableRendererLogging) {
-        _logger.logNodeCreation(id);
-      }
+    final id = _uuid.v4();
+    final node = GraphNode(
+      id: id,
+      position: position,
+      label: text ?? "Note ${nodes.length + 1}",
+    );
+    nodes[id] = node;
+    _physicsEngine.addNode(node);
+    if (DebugConstants.enableRendererLogging) {
+      _logger.logNodeCreation(id);
+    }
 
-      // If the initial animation is done, animate this single node immediately
-      if (!_appearAnimationActive) {
-        _animateSingleNodeAppearance(node);
-      }
-    });
+    // If the initial animation is done, animate this single node immediately
+    if (!_appearAnimationActive) {
+      _animateSingleNodeAppearance(node);
+    }
+
+    // Trigger repaint without rebuilding widget tree
+    _graphTickNotifier.value++;
   }
 
   /// Animate a single newly-added node after initial batch animation is complete.
+  /// Reuses the existing Ticker-based approach with easeOutCubic (cheap polynomial).
   void _animateSingleNodeAppearance(GraphNode node) {
-    final duration = AppConstants.nodeAppearDurationMs;
-    final startTime = DateTime.now();
+    _appearSchedule.clear();
+    _appearSchedule.add(_NodeAppearSchedule(node.id, 0.0));
+    _appearElapsedMs = 0.0;
+    _appearAnimationActive = true;
 
-    Timer.periodic(const Duration(milliseconds: 16), (timer) {
-      final elapsed =
-          DateTime.now().difference(startTime).inMicroseconds / 1000.0;
-      final t = (elapsed / duration).clamp(0.0, 1.0);
-      node.appearanceScale = Curves.elasticOut.transform(t);
-      _graphTickNotifier.value++;
-
-      if (t >= 1.0) {
-        node.appearanceScale = 1.0;
-        timer.cancel();
-      }
-    });
+    _appearanceTicker?.dispose();
+    _appearanceTicker = createTicker(_onAppearanceTick);
+    _appearanceTicker!.start();
   }
 
   void _deleteNode(String id) {
-    setState(() {
-      nodes.remove(id);
-      links.removeWhere((l) => l.sourceId == id || l.targetId == id);
-      if (_draggingNodeId.value == id) _draggingNodeId.value = null;
-      if (_selectedNodeForLink == id) _selectedNodeForLink = null;
+    final node = nodes[id];
+    if (node == null || _disappearingNodes.containsKey(id)) return;
 
-      _physicsEngine.removeNode(id);
-      if (DebugConstants.enableRendererLogging) {
-        _logger.logNodeDeletion(id);
+    if (_draggingNodeId.value == id) _draggingNodeId.value = null;
+    if (_selectedNodeForLink == id) _selectedNodeForLink = null;
+
+    // Immediately remove links and update physics so other nodes react
+    links.removeWhere((l) => l.sourceId == id || l.targetId == id);
+    _physicsEngine.removeNode(id);
+    _physicsEngine.updateLinks(links);
+    _recalculateNodeSizes();
+
+    if (DebugConstants.enableRendererLogging) {
+      _logger.logNodeDeletion(id);
+    }
+
+    // Start disappear animation
+    _disappearingNodes[id] = 0.0;
+    _startDisappearAnimation();
+  }
+
+  void _startDisappearAnimation() {
+    if (_disappearTicker?.isActive == true) return;
+    _disappearElapsedMs = 0.0;
+    _disappearTicker?.dispose();
+    _disappearTicker = createTicker(_onDisappearTick);
+    _disappearTicker!.start();
+  }
+
+  void _onDisappearTick(Duration elapsed) {
+    _disappearElapsedMs = elapsed.inMicroseconds / 1000.0;
+    final duration =
+        AppConstants.nodeAppearDurationMs * 0.6; // faster disappear
+
+    final toRemove = <String>[];
+    for (final entry in _disappearingNodes.entries) {
+      final node = nodes[entry.key];
+      if (node == null) {
+        toRemove.add(entry.key);
+        continue;
       }
-      _recalculateNodeSizes();
-    });
+
+      final t = (_disappearElapsedMs / duration).clamp(0.0, 1.0);
+      // easeInCubic — accelerating shrink
+      node.appearanceScale = 1.0 - (t * t * t);
+
+      if (t >= 1.0) {
+        toRemove.add(entry.key);
+      }
+    }
+
+    for (final id in toRemove) {
+      _disappearingNodes.remove(id);
+      nodes.remove(id);
+    }
+
+    _graphTickNotifier.value++;
+
+    if (_disappearingNodes.isEmpty) {
+      _disappearTicker?.stop();
+    }
   }
 
   void _recalculateNodeSizes() {
