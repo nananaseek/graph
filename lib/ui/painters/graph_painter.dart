@@ -8,7 +8,6 @@ class GraphPainter extends CustomPainter {
   final String? selectedNodeId;
   final Rect? viewport;
 
-  // Pre-allocated Paint objects — avoids ~240 allocations/sec at 60fps
   final Paint _linePaint = Paint()
     ..color = const Color.fromRGBO(158, 158, 158, 0.4)
     ..strokeWidth = 2.5
@@ -40,7 +39,6 @@ class GraphPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Hardware-level clipping — GPU discards draw commands outside viewport
     if (viewport != null) {
       canvas.save();
       canvas.clipRect(viewport!);

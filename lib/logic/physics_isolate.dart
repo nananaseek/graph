@@ -7,7 +7,6 @@ import 'dart:ui';
 import '../models/physics_node.dart';
 import 'quadtree.dart';
 
-// Commands
 enum PhysicsCommand {
   init,
   updateNodes,
@@ -260,18 +259,10 @@ void physicsIsolateEntry(SendPort sendPort) {
       node.vy *= velocityDecayFactor;
     }
 
-    // Throttle messages: User found 60fps (no throttle) smoother with Float64List packed data
     frameCount++;
     if (frameCount % 1 == 0) {
       final count = nodes.length;
       final buffer = Float64List(count * 2);
-
-      // Ensure we have a stable list of IDs for mapping
-      // We send the list of IDs only when topology changes (add/remove),
-      // but here we assume the receiver knows the order or we send it?
-      // Better: send a Map, but specialized?
-      // Or just stick to Map for now but throttle MORE aggressively?
-      // The user wants Float64List optimization.
 
       // We need to maintain a stable list of keys
       final ids = nodes.keys.toList(growable: false);
@@ -284,12 +275,6 @@ void physicsIsolateEntry(SendPort sendPort) {
         }
       }
 
-      // Send both the packed positions and the IDs to map them back
-      // Sending the list of strings might still be expensive if large?
-      // But IDs don't change often.
-      // Optimization: Only send IDs if changed.
-      // For now, let's send both to be safe and simple, optimization is in the Float64List for coords.
-
       sendPort.send(
         PhysicsMessage(PhysicsCommand.updateNodes, {
           'ids': ids,
@@ -299,7 +284,6 @@ void physicsIsolateEntry(SendPort sendPort) {
     }
   }
 
-  // Start or restart the simulation timer
   void startTimer() {
     if (loopTimer != null && loopTimer!.isActive) return;
     loopTimer?.cancel();

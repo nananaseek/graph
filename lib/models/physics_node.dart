@@ -1,8 +1,6 @@
 import 'dart:math';
 import 'dart:ui';
 
-/// Lightweight node representation for physics calculations in Isolate.
-/// Uses scalar doubles instead of Offset to avoid immutable object allocations.
 class PhysicsNode {
   final String id;
   double px;
@@ -12,7 +10,6 @@ class PhysicsNode {
   double mass;
   double radius;
 
-  /// Cached sqrt(mass) — avoids recomputing every frame in gravity loop.
   double sqrtMass;
 
   PhysicsNode({
@@ -42,7 +39,6 @@ class PhysicsNode {
 
   Offset get position => Offset(px, py);
 
-  // Clone method for safe passing between isolates if needed
   PhysicsNode copy() {
     return PhysicsNode._raw(
       id: id,

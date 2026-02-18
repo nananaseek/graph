@@ -86,8 +86,6 @@ class QuadtreeNode {
   }
 }
 
-/// Pool of QuadtreeNode objects — avoids GC pressure from per-frame allocations.
-/// ~6000-12000 allocations/sec eliminated at 60fps with 55+ nodes.
 class QuadtreeNodePool {
   final List<QuadtreeNode> _pool = [];
   int _index = 0;
@@ -126,7 +124,7 @@ class ForceAccum {
 class Quadtree {
   QuadtreeNode? root;
   final double bLeft, bTop, bWidth, bHeight;
-  final double thetaSq; // Pre-squared theta for avoiding sqrt in BH check
+  final double thetaSq;
   final QuadtreeNodePool pool;
 
   Quadtree(
@@ -169,7 +167,6 @@ class Quadtree {
       final dx = node.body!.px - body.px;
       final dy = node.body!.py - body.py;
       if (dx * dx + dy * dy < 0.000001) {
-        // Near-coincident bodies — jitter slightly to avoid infinite subdivision
         body.px += 0.1;
         body.py += 0.1;
       }
@@ -214,7 +211,6 @@ class Quadtree {
     double momentX = 0;
     double momentY = 0;
 
-    // Inline iteration over 4 fields — no List/iterator overhead
     final c0 = node.child0;
     if (c0 != null) {
       massSum += c0.totalMass;

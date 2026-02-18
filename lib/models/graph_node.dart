@@ -10,8 +10,6 @@ class GraphNode {
   double mass;
   double radius;
 
-  /// Visual-only scale factor for appearance animation (0.0 = invisible, 1.0 = full size).
-  /// Does not affect physics — only rendering.
   double appearanceScale;
 
   TextPainter? textPainter;
@@ -53,7 +51,6 @@ class GraphNode {
     radius = baseRadius + (degree * 1.1);
     mass = baseMass + (degree * AppConstants.connectionMassModifier);
 
-    // Only rebuild TextPainter if mass changed (affects fontSize)
     if (mass != _lastMass) {
       _lastMass = mass;
       _updateTextPainter();

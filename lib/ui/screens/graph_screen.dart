@@ -118,7 +118,6 @@ class _GraphScreenState extends State<GraphScreen>
               node.position = entry.value;
             }
           }
-          // Trigger repaint
           _graphTickNotifier.value++;
         });
 
@@ -157,7 +156,6 @@ class _GraphScreenState extends State<GraphScreen>
     _appearanceTicker!.start();
   }
 
-  /// Called every frame while the appearance animation runs.
   void _onAppearanceTick(Duration elapsed) {
     _appearElapsedMs = elapsed.inMicroseconds / 1000.0;
 
@@ -184,16 +182,11 @@ class _GraphScreenState extends State<GraphScreen>
       if (t >= 1.0) {
         node.appearanceScale = 1.0;
       } else {
-        // easeOutCubic — cheap: no trig, just one multiply
         final t1 = 1.0 - t;
         node.appearanceScale = 1.0 - t1 * t1 * t1;
         allDone = false;
       }
     }
-
-    // No need to trigger _graphTickNotifier here —
-    // the physics ticker already repaints every frame.
-    // This ticker only updates the scale values.
 
     if (allDone) {
       // Final repaint to ensure all nodes show text (scale == 1.0)
@@ -233,7 +226,6 @@ class _GraphScreenState extends State<GraphScreen>
       _logger.logNodeCreation(id);
     }
 
-    // If the initial animation is done, animate this single node immediately
     if (!_appearAnimationActive) {
       _animateSingleNodeAppearance(node);
     }
@@ -242,8 +234,6 @@ class _GraphScreenState extends State<GraphScreen>
     _graphTickNotifier.value++;
   }
 
-  /// Animate a single newly-added node after initial batch animation is complete.
-  /// Reuses the existing Ticker-based approach with easeOutCubic (cheap polynomial).
   void _animateSingleNodeAppearance(GraphNode node) {
     _appearSchedule.clear();
     _appearSchedule.add(_NodeAppearSchedule(node.id, 0.0));
@@ -262,7 +252,6 @@ class _GraphScreenState extends State<GraphScreen>
     if (_draggingNodeId.value == id) _draggingNodeId.value = null;
     if (_selectedNodeForLink == id) _selectedNodeForLink = null;
 
-    // Immediately remove links and update physics so other nodes react
     links.removeWhere((l) => l.sourceId == id || l.targetId == id);
     _physicsEngine.removeNode(id);
     _physicsEngine.updateLinks(links);
