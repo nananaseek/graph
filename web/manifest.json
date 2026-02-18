@@ -1,6 +1,6 @@
 {
-    "name": "graph",
-    "short_name": "graph",
+    "name": "Graph",
+    "short_name": "Graph",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

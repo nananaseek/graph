@@ -6,6 +6,10 @@ import 'core/service_locator.dart';
 void main() {
   setupServiceLocator();
   runApp(
-    const MaterialApp(debugShowCheckedModeBanner: false, home: GraphScreen()),
+    const MaterialApp(
+      title: 'Graph',
+      debugShowCheckedModeBanner: false,
+      home: GraphScreen(),
+    ),
   );
 }
