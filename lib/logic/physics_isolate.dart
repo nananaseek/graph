@@ -85,27 +85,27 @@ void physicsIsolateEntry(SendPort sendPort) {
   double alpha = 1.0;
 
   // Precomputed link degree counts for D3-style bias
-  Map<String, int> _nodeDegrees = {};
+  Map<String, int> nodeDegrees = {};
 
   // State
   String? draggingNodeId;
 
   // Frame counter for message throttling
-  int _frameCount = 0;
+  int frameCount = 0;
 
   // Reusable force accumulator — avoids Offset allocations
-  final ForceAccum _forceAccum = ForceAccum();
+  final ForceAccum forceAccum = ForceAccum();
 
-  void _recomputeDegrees() {
-    _nodeDegrees = {};
+  void recomputeDegrees() {
+    nodeDegrees = {};
     for (final link in links) {
-      _nodeDegrees[link.sourceId] = (_nodeDegrees[link.sourceId] ?? 0) + 1;
-      _nodeDegrees[link.targetId] = (_nodeDegrees[link.targetId] ?? 0) + 1;
+      nodeDegrees[link.sourceId] = (nodeDegrees[link.sourceId] ?? 0) + 1;
+      nodeDegrees[link.targetId] = (nodeDegrees[link.targetId] ?? 0) + 1;
     }
   }
 
   // Stop timer — called when simulation converges
-  void _stopTimer() {
+  void stopTimer() {
     loopTimer?.cancel();
     loopTimer = null;
   }
@@ -117,7 +117,7 @@ void physicsIsolateEntry(SendPort sendPort) {
 
     if (alpha < config.alphaMin) {
       // Simulation converged — stop the timer to save CPU
-      _stopTimer();
+      stopTimer();
       return;
     }
 
@@ -151,12 +151,12 @@ void physicsIsolateEntry(SendPort sendPort) {
         node,
         config.manyBodyStrength,
         alpha,
-        _forceAccum,
+        forceAccum,
         distanceMin: config.manyBodyDistanceMin,
         distanceMax: config.manyBodyDistanceMax,
       );
-      node.vx += _forceAccum.x;
-      node.vy += _forceAccum.y;
+      node.vx += forceAccum.x;
+      node.vy += forceAccum.y;
     }
 
     // Merged loop: linked repulsion correction + link spring forces
@@ -211,8 +211,8 @@ void physicsIsolateEntry(SendPort sendPort) {
           alpha *
           config.linkStrength;
 
-      final sourceDegree = _nodeDegrees[n1.id] ?? 1;
-      final targetDegree = _nodeDegrees[n2.id] ?? 1;
+      final sourceDegree = nodeDegrees[n1.id] ?? 1;
+      final targetDegree = nodeDegrees[n2.id] ?? 1;
       final bias = sourceDegree / (sourceDegree + targetDegree);
 
       if (n2.id != draggingNodeId) {
@@ -253,8 +253,8 @@ void physicsIsolateEntry(SendPort sendPort) {
     }
 
     // Throttle messages: User found 60fps (no throttle) smoother with Float64List packed data
-    _frameCount++;
-    if (_frameCount % 1 == 0) {
+    frameCount++;
+    if (frameCount % 1 == 0) {
       final count = nodes.length;
       final buffer = Float64List(count * 2);
 
@@ -292,15 +292,15 @@ void physicsIsolateEntry(SendPort sendPort) {
   }
 
   // Start or restart the simulation timer
-  void _startTimer() {
+  void startTimer() {
     if (loopTimer != null && loopTimer!.isActive) return;
     loopTimer?.cancel();
     loopTimer = Timer.periodic(const Duration(milliseconds: 16), (_) => step());
   }
 
-  void _reheat() {
+  void reheat() {
     alpha = config.alphaStart;
-    _startTimer();
+    startTimer();
   }
 
   // Message Loop
@@ -308,11 +308,11 @@ void physicsIsolateEntry(SendPort sendPort) {
     if (message is PhysicsMessage) {
       switch (message.command) {
         case PhysicsCommand.start:
-          _startTimer();
+          startTimer();
           break;
 
         case PhysicsCommand.stop:
-          _stopTimer();
+          stopTimer();
           break;
 
         case PhysicsCommand.init:
@@ -327,8 +327,8 @@ void physicsIsolateEntry(SendPort sendPort) {
             if (data.config != null) {
               config = data.config!;
             }
-            _recomputeDegrees();
-            _reheat();
+            recomputeDegrees();
+            reheat();
           }
           break;
 
@@ -337,7 +337,7 @@ void physicsIsolateEntry(SendPort sendPort) {
             for (var n in (message.data as List<PhysicsNode>)) {
               nodes[n.id] = n;
             }
-            _reheat();
+            reheat();
           }
           break;
 
@@ -346,8 +346,8 @@ void physicsIsolateEntry(SendPort sendPort) {
             final id = message.data as String;
             nodes.remove(id);
             links.removeWhere((l) => l.sourceId == id || l.targetId == id);
-            _recomputeDegrees();
-            _reheat();
+            recomputeDegrees();
+            reheat();
           }
           break;
 
@@ -355,8 +355,8 @@ void physicsIsolateEntry(SendPort sendPort) {
           if (message.data is List<PhysicsLinkData>) {
             links.clear();
             links.addAll(message.data as List<PhysicsLinkData>);
-            _recomputeDegrees();
-            _reheat();
+            recomputeDegrees();
+            reheat();
           }
           break;
 
@@ -373,14 +373,14 @@ void physicsIsolateEntry(SendPort sendPort) {
               nodes[id]?.vy = 0;
             }
 
-            _reheat();
+            reheat();
           } else {
             draggingNodeId = null;
           }
           break;
 
         case PhysicsCommand.reheat:
-          _reheat();
+          reheat();
           break;
 
         default:

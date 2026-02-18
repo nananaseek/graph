@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:isolate';
-import 'dart:ui';
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:graph/logic/physics_isolate.dart';

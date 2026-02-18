@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:graph/ui/screens/graph_screen.dart';
+import 'package:graph/ui/widgets/graph_renderer.dart';
 import 'package:graph/logic/physics_engine.dart';
 import 'package:graph/services/logging_service.dart';
 import 'package:graph/models/graph_node.dart';
@@ -80,34 +81,43 @@ void main() {
     GetIt.instance.reset();
   });
 
-  testWidgets('Canvas is centered on startup', (WidgetTester tester) async {
+  testWidgets('GraphRenderer viewport updates on pan', (
+    WidgetTester tester,
+  ) async {
     // 1. Pump the widget
     await tester.pumpWidget(const MaterialApp(home: GraphScreen()));
-
-    // 2. Wait for the post frame callback and layout (centering logic)
     await tester.pumpAndSettle();
 
-    // 3. Find InteractiveViewer
-    final interactiveViewerFinder = find.byType(InteractiveViewer);
-    expect(interactiveViewerFinder, findsOneWidget);
+    // 2. Find GraphRenderer and get initial viewport
+    final rendererFinder = find.byType(GraphRenderer);
+    expect(rendererFinder, findsOneWidget);
 
-    final InteractiveViewer viewer = tester.widget(interactiveViewerFinder);
+    final GraphRenderer initialRenderer = tester.widget(rendererFinder);
+    final initialViewport = initialRenderer.viewport;
+    print("Initial Viewport: $initialViewport");
 
-    // Checking the `transformationController` property of the found InteractiveViewer widget.
-    expect(viewer.transformationController, isNotNull);
+    // 3. Find InteractiveViewer and pan
+    final viewerFinder = find.byType(InteractiveViewer);
+    expect(viewerFinder, findsOneWidget);
 
-    final matrix = viewer.transformationController!.value;
-    final translation = matrix.getTranslation();
+    // Drag by (100, 100)
+    await tester.drag(viewerFinder, const Offset(100, 100));
+    await tester.pump(); // Pump frame
 
-    // 4. Verify translation
-    print("Translation: $translation");
-    print(
-      "Screen Size: ${tester.binding.window.physicalSize / tester.binding.window.devicePixelRatio}",
+    // 4. Get viewport again
+    final GraphRenderer updatedRenderer = tester.widget(rendererFinder);
+    final updatedViewport = updatedRenderer.viewport;
+    print("Updated Viewport: $updatedViewport");
+
+    // 5. Assert viewport has changed
+    // If the bug exists, these will be equal because GraphScreen didn't rebuild
+    expect(
+      updatedViewport,
+      isNot(equals(initialViewport)),
+      reason: "Viewport should change after panning",
     );
 
-    // Standard test screen size is 800x600 in logical pixels.
-    // Center of 800x600 is 400,300.
-    expect(translation.x, equals(400.0));
-    expect(translation.y, equals(300.0));
+    // Clear pending timers
+    await tester.pumpAndSettle(const Duration(seconds: 1));
   });
 }

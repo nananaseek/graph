@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../../models/graph_node.dart';
@@ -33,13 +32,13 @@ class _GraphScreenState extends State<GraphScreen>
   StreamSubscription? _physicsSubscription;
   final ValueNotifier<int> _graphTickNotifier = ValueNotifier(0);
 
-  String? _draggingNodeId;
+  final ValueNotifier<String?> _draggingNodeId = ValueNotifier(null);
   bool _isSidebarOpen = false;
   String? _selectedNodeForLink;
   int _dragMoveCount = 0;
 
   // Cached viewport — updated on transform change, not on every build
-  Rect? _currentViewport;
+  // Rect? _currentViewport; // REMOVED: No longer needed as state
   Size _screenSize = Size.zero;
 
   @override
@@ -48,7 +47,7 @@ class _GraphScreenState extends State<GraphScreen>
     _physicsEngine = getIt<PhysicsEngine>();
 
     // Listen to transform changes → update cached viewport
-    _transformationController.addListener(_updateViewport);
+    // _transformationController.addListener(_updateViewport); // REMOVED
 
     _addNode(const Offset(0, 0), "Main Hub");
     _addNode(const Offset(100, 100), "Note A");
@@ -119,28 +118,18 @@ class _GraphScreenState extends State<GraphScreen>
   void didChangeDependencies() {
     super.didChangeDependencies();
     _screenSize = MediaQuery.of(context).size;
-    _updateViewport();
+    // _updateViewport(); // REMOVED
   }
 
-  void _updateViewport() {
-    if (_screenSize == Size.zero) return;
-    final matrix = _transformationController.value;
-    final translation = matrix.getTranslation();
-    final scale = matrix.getMaxScaleOnAxis();
-    _currentViewport = Rect.fromLTWH(
-      -translation.x / scale,
-      -translation.y / scale,
-      _screenSize.width / scale,
-      _screenSize.height / scale,
-    ).inflate(100);
-  }
+  // void _updateViewport() { ... } // REMOVED
 
   @override
   void dispose() {
-    _transformationController.removeListener(_updateViewport);
+    // _transformationController.removeListener(_updateViewport); // REMOVED
     _physicsSubscription?.cancel();
     _physicsEngine.dispose();
     _graphTickNotifier.dispose();
+    _draggingNodeId.dispose();
     super.dispose();
   }
 
@@ -164,7 +153,7 @@ class _GraphScreenState extends State<GraphScreen>
     setState(() {
       nodes.remove(id);
       links.removeWhere((l) => l.sourceId == id || l.targetId == id);
-      if (_draggingNodeId == id) _draggingNodeId = null;
+      if (_draggingNodeId.value == id) _draggingNodeId.value = null;
       if (_selectedNodeForLink == id) _selectedNodeForLink = null;
 
       _physicsEngine.removeNode(id);
@@ -206,12 +195,12 @@ class _GraphScreenState extends State<GraphScreen>
   }
 
   void _cancelDrag() {
-    if (_draggingNodeId != null) {
+    if (_draggingNodeId.value != null) {
       _physicsEngine.endDrag();
       if (DebugConstants.enableNodeTapLogging) {
-        _logger.logNodeDragEnd(_draggingNodeId!);
+        _logger.logNodeDragEnd(_draggingNodeId.value!);
       }
-      setState(() => _draggingNodeId = null);
+      _draggingNodeId.value = null;
     }
   }
 
@@ -235,7 +224,7 @@ class _GraphScreenState extends State<GraphScreen>
               final localTap = _getLocalOffset(details.localPosition);
               final hitNodeId = _hitTest(localTap);
               if (hitNodeId != null) {
-                setState(() => _draggingNodeId = hitNodeId);
+                _draggingNodeId.value = hitNodeId;
                 _dragMoveCount = 0;
                 _physicsEngine.startDrag(hitNodeId);
                 if (DebugConstants.enableNodeTapLogging) {
@@ -244,17 +233,20 @@ class _GraphScreenState extends State<GraphScreen>
               }
             },
             onPointerMove: (PointerMoveEvent details) {
-              if (_draggingNodeId != null) {
+              if (_draggingNodeId.value != null) {
                 // Throttle: skip every other pointer event to halve raster load
                 _dragMoveCount++;
                 if (_dragMoveCount % 2 != 0) return;
 
                 final localTap = _getLocalOffset(details.localPosition);
 
-                final node = nodes[_draggingNodeId];
+                final node = nodes[_draggingNodeId.value];
                 if (node != null) {
                   node.position = localTap;
-                  _physicsEngine.updateNodePosition(_draggingNodeId!, localTap);
+                  _physicsEngine.updateNodePosition(
+                    _draggingNodeId.value!,
+                    localTap,
+                  );
                 }
               }
             },
@@ -353,28 +345,49 @@ class _GraphScreenState extends State<GraphScreen>
                   }
                 }
               },
-              child: InteractiveViewer(
-                transformationController: _transformationController,
-                boundaryMargin: const EdgeInsets.all(double.infinity),
-                minScale: 0.1,
-                maxScale: 5.0,
-                panEnabled: _draggingNodeId == null,
-                scaleEnabled: true,
-                onInteractionStart: (details) {
-                  // If user starts pinching (2+ fingers), cancel any node drag
-                  if (details.pointerCount >= 2) {
-                    _cancelDrag();
-                  }
+              child: ValueListenableBuilder<String?>(
+                valueListenable: _draggingNodeId,
+                builder: (context, draggingId, interactiveChild) {
+                  return InteractiveViewer(
+                    transformationController: _transformationController,
+                    boundaryMargin: const EdgeInsets.all(double.infinity),
+                    minScale: 0.1,
+                    maxScale: 5.0,
+                    panEnabled: draggingId == null,
+                    scaleEnabled: true,
+                    onInteractionStart: (details) {
+                      // If user starts pinching (2+ fingers), cancel any node drag
+                      if (details.pointerCount >= 2) {
+                        _cancelDrag();
+                      }
+                    },
+                    child: interactiveChild!,
+                  );
                 },
                 child: SizedBox(
                   width: 5000,
                   height: 5000,
-                  child: GraphRenderer(
-                    nodes: nodes,
-                    links: links,
-                    tickNotifier: _graphTickNotifier,
-                    selectedNodeId: _selectedNodeForLink,
-                    viewport: _currentViewport,
+                  child: ValueListenableBuilder<Matrix4>(
+                    valueListenable: _transformationController,
+                    builder: (context, matrix, child) {
+                      // Calculate viewport here
+                      final translation = matrix.getTranslation();
+                      final scale = matrix.getMaxScaleOnAxis();
+                      final viewport = Rect.fromLTWH(
+                        -translation.x / scale,
+                        -translation.y / scale,
+                        _screenSize.width / scale,
+                        _screenSize.height / scale,
+                      ).inflate(100);
+
+                      return GraphRenderer(
+                        nodes: nodes,
+                        links: links,
+                        tickNotifier: _graphTickNotifier,
+                        selectedNodeId: _selectedNodeForLink,
+                        viewport: viewport,
+                      );
+                    },
                   ),
                 ),
               ),
