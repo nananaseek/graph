@@ -21,9 +21,12 @@ class AppConstants {
 
   // Gravity — pull nodes to center (0,0)
   static const double gravityStrength = 0.02;
-  static const double gravityDistanceScale =
-      10000.0;
+  static const double gravityDistanceScale = 10000.0;
 
   // Mass multiplier per connection
   static const double connectionMassModifier = 0.3;
+
+  // Node appearance animation
+  static const double nodeAppearDurationMs = 600.0;
+  static const double nodeAppearStaggerMs = 80.0;
 }

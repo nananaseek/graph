@@ -10,6 +10,10 @@ class GraphNode {
   double mass;
   double radius;
 
+  /// Visual-only scale factor for appearance animation (0.0 = invisible, 1.0 = full size).
+  /// Does not affect physics — only rendering.
+  double appearanceScale;
+
   TextPainter? textPainter;
   double _lastMass = -1;
 
@@ -20,6 +24,7 @@ class GraphNode {
     this.velocity = Offset.zero,
     this.mass = 1.0,
     this.radius = 18.0,
+    this.appearanceScale = 0.0,
   }) {
     _lastMass = mass;
     _updateTextPainter();

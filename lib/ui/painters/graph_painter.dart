@@ -46,12 +46,17 @@ class GraphPainter extends CustomPainter {
       canvas.clipRect(viewport!);
     }
 
-    // Draw links first
+    // Draw links — hide if either node hasn't appeared enough
     for (final link in links) {
       final source = nodes[link.sourceId];
       final target = nodes[link.targetId];
 
       if (source != null && target != null) {
+        // Skip links where either node is still too small
+        if (source.appearanceScale < 0.5 || target.appearanceScale < 0.5) {
+          continue;
+        }
+
         // Culling for links: if both nodes are outside viewport, skip
         if (viewport != null) {
           if (!viewport!.contains(source.position) &&
@@ -65,6 +70,9 @@ class GraphPainter extends CustomPainter {
 
     // Draw nodes
     for (final node in nodes.values) {
+      // Skip fully invisible nodes
+      if (node.appearanceScale <= 0.0) continue;
+
       // View Frustum Culling
       if (viewport != null) {
         // Adding radius margin to avoid popping
@@ -80,17 +88,24 @@ class GraphPainter extends CustomPainter {
         }
       }
 
+      // Use pre-clamped scale from node (already 0..1)
+      final scaledRadius = node.radius * node.appearanceScale;
+
       if (node.id == selectedNodeId) {
-        canvas.drawCircle(node.position, node.radius + 4.0, _selectedGlowPaint);
-        canvas.drawCircle(node.position, node.radius, _selectedNodePaint);
+        canvas.drawCircle(
+          node.position,
+          scaledRadius + 4.0 * node.appearanceScale,
+          _selectedGlowPaint,
+        );
+        canvas.drawCircle(node.position, scaledRadius, _selectedNodePaint);
       } else {
-        canvas.drawCircle(node.position, node.radius, _nodePaint);
+        canvas.drawCircle(node.position, scaledRadius, _nodePaint);
       }
 
-      canvas.drawCircle(node.position, node.radius, _nodeBorderPaint);
+      canvas.drawCircle(node.position, scaledRadius, _nodeBorderPaint);
 
-      // Use cached TextPainter
-      if (node.textPainter != null) {
+      // Text: show only when fully appeared — no canvas.save/scale/restore overhead
+      if (node.textPainter != null && node.appearanceScale >= 1.0) {
         node.textPainter!.paint(
           canvas,
           node.position - Offset(node.textPainter!.width / 2, node.radius + 15),

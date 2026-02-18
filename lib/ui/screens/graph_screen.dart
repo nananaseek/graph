@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:uuid/uuid.dart';
 import '../../models/graph_node.dart';
 import '../../models/graph_link.dart';
@@ -7,8 +9,17 @@ import '../../logic/physics_engine.dart';
 import '../../core/service_locator.dart';
 import '../../services/logging_service.dart';
 import '../../core/debug_constants.dart';
+import '../../core/constants.dart';
 
 import '../widgets/graph_renderer.dart';
+
+/// Tracks when a node's appearance animation starts (relative to the overall start).
+class _NodeAppearSchedule {
+  final String nodeId;
+  final double startMs; // Delay before this node starts appearing
+
+  _NodeAppearSchedule(this.nodeId, this.startMs);
+}
 
 class GraphScreen extends StatefulWidget {
   const GraphScreen({super.key});
@@ -37,17 +48,21 @@ class _GraphScreenState extends State<GraphScreen>
   String? _selectedNodeForLink;
   int _dragMoveCount = 0;
 
-  // Cached viewport — updated on transform change, not on every build
-  // Rect? _currentViewport; // REMOVED: No longer needed as state
   Size _screenSize = Size.zero;
+
+  // --- Node appearance animation ---
+  Ticker? _appearanceTicker;
+  final List<_NodeAppearSchedule> _appearSchedule = [];
+  double _appearElapsedMs = 0.0;
+  bool _appearAnimationActive = false;
 
   @override
   void initState() {
     super.initState();
     _physicsEngine = getIt<PhysicsEngine>();
 
-    // Listen to transform changes → update cached viewport
-    // _transformationController.addListener(_updateViewport); // REMOVED
+    // Mark batch animation as active so _addNode doesn't trigger individual timers
+    _appearAnimationActive = true;
 
     _addNode(const Offset(0, 0), "Main Hub");
     _addNode(const Offset(100, 100), "Note A");
@@ -103,6 +118,9 @@ class _GraphScreenState extends State<GraphScreen>
         });
 
         _recalculateNodeSizes();
+
+        // Start staggered appearance animation
+        _startNodeAppearanceAnimation();
       }
     });
 
@@ -114,18 +132,81 @@ class _GraphScreenState extends State<GraphScreen>
     });
   }
 
+  /// Build the appearance schedule and start the ticker.
+  void _startNodeAppearanceAnimation() {
+    // Shuffle node IDs for random order
+    final nodeIds = nodes.keys.toList()..shuffle(Random());
+
+    _appearSchedule.clear();
+    for (int i = 0; i < nodeIds.length; i++) {
+      _appearSchedule.add(
+        _NodeAppearSchedule(nodeIds[i], i * AppConstants.nodeAppearStaggerMs),
+      );
+    }
+
+    _appearElapsedMs = 0.0;
+    _appearAnimationActive = true;
+
+    _appearanceTicker?.dispose();
+    _appearanceTicker = createTicker(_onAppearanceTick);
+    _appearanceTicker!.start();
+  }
+
+  /// Called every frame while the appearance animation runs.
+  void _onAppearanceTick(Duration elapsed) {
+    _appearElapsedMs = elapsed.inMicroseconds / 1000.0;
+
+    bool allDone = true;
+    final duration = AppConstants.nodeAppearDurationMs;
+
+    for (final schedule in _appearSchedule) {
+      final node = nodes[schedule.nodeId];
+      if (node == null) continue;
+
+      final localElapsed = _appearElapsedMs - schedule.startMs;
+
+      if (localElapsed <= 0.0) {
+        allDone = false;
+        continue;
+      }
+
+      if (node.appearanceScale >= 1.0) {
+        continue;
+      }
+
+      // Linear progress 0→1
+      double t = localElapsed / duration;
+      if (t >= 1.0) {
+        node.appearanceScale = 1.0;
+      } else {
+        // easeOutCubic — cheap: no trig, just one multiply
+        final t1 = 1.0 - t;
+        node.appearanceScale = 1.0 - t1 * t1 * t1;
+        allDone = false;
+      }
+    }
+
+    // No need to trigger _graphTickNotifier here —
+    // the physics ticker already repaints every frame.
+    // This ticker only updates the scale values.
+
+    if (allDone) {
+      // Final repaint to ensure all nodes show text (scale == 1.0)
+      _graphTickNotifier.value++;
+      _appearanceTicker?.stop();
+      _appearAnimationActive = false;
+    }
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _screenSize = MediaQuery.of(context).size;
-    // _updateViewport(); // REMOVED
   }
-
-  // void _updateViewport() { ... } // REMOVED
 
   @override
   void dispose() {
-    // _transformationController.removeListener(_updateViewport); // REMOVED
+    _appearanceTicker?.dispose();
     _physicsSubscription?.cancel();
     _physicsEngine.dispose();
     _graphTickNotifier.dispose();
@@ -145,6 +226,30 @@ class _GraphScreenState extends State<GraphScreen>
       _physicsEngine.addNode(node);
       if (DebugConstants.enableRendererLogging) {
         _logger.logNodeCreation(id);
+      }
+
+      // If the initial animation is done, animate this single node immediately
+      if (!_appearAnimationActive) {
+        _animateSingleNodeAppearance(node);
+      }
+    });
+  }
+
+  /// Animate a single newly-added node after initial batch animation is complete.
+  void _animateSingleNodeAppearance(GraphNode node) {
+    final duration = AppConstants.nodeAppearDurationMs;
+    final startTime = DateTime.now();
+
+    Timer.periodic(const Duration(milliseconds: 16), (timer) {
+      final elapsed =
+          DateTime.now().difference(startTime).inMicroseconds / 1000.0;
+      final t = (elapsed / duration).clamp(0.0, 1.0);
+      node.appearanceScale = Curves.elasticOut.transform(t);
+      _graphTickNotifier.value++;
+
+      if (t >= 1.0) {
+        node.appearanceScale = 1.0;
+        timer.cancel();
       }
     });
   }
