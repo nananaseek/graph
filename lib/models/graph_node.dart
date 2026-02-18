@@ -33,7 +33,7 @@ class GraphNode {
           color: Colors.white,
           fontSize: 11 + (mass * 1.5),
           fontWeight: FontWeight.w500,
-          shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
+          shadows: const [Shadow(color: Colors.black54, offset: Offset(1, 1))],
         ),
       ),
       textDirection: TextDirection.ltr,

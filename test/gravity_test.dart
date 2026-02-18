@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:isolate';
 import 'dart:ui';
+import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:graph/logic/physics_isolate.dart';
 import 'package:graph/models/physics_node.dart';
@@ -19,7 +20,19 @@ void main() {
       } else if (message is PhysicsMessage) {
         if (message.command == PhysicsCommand.updateNodes) {
           if (!updateCompleter.isCompleted) {
-            updateCompleter.complete(message.data as Map<String, Offset>);
+            if (message.data is Map &&
+                (message.data as Map).containsKey('ids')) {
+              final data = message.data as Map;
+              final ids = data['ids'] as List<String>;
+              final coords = data['coords'] as Float64List;
+              final map = <String, Offset>{};
+              for (int i = 0; i < ids.length; i++) {
+                map[ids[i]] = Offset(coords[i * 2], coords[i * 2 + 1]);
+              }
+              updateCompleter.complete(map);
+            } else {
+              updateCompleter.complete(message.data as Map<String, Offset>);
+            }
           }
         }
       }

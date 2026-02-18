@@ -36,11 +36,19 @@ class _GraphScreenState extends State<GraphScreen>
   String? _draggingNodeId;
   bool _isSidebarOpen = false;
   String? _selectedNodeForLink;
+  int _dragMoveCount = 0;
+
+  // Cached viewport — updated on transform change, not on every build
+  Rect? _currentViewport;
+  Size _screenSize = Size.zero;
 
   @override
   void initState() {
     super.initState();
     _physicsEngine = getIt<PhysicsEngine>();
+
+    // Listen to transform changes → update cached viewport
+    _transformationController.addListener(_updateViewport);
 
     _addNode(const Offset(0, 0), "Main Hub");
     _addNode(const Offset(100, 100), "Note A");
@@ -100,15 +108,36 @@ class _GraphScreenState extends State<GraphScreen>
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final size = MediaQuery.of(context).size;
-      final x = size.width / 2;
-      final y = size.height / 2;
+      _screenSize = MediaQuery.of(context).size;
+      final x = _screenSize.width / 2;
+      final y = _screenSize.height / 2;
       _transformationController.value = Matrix4.translationValues(x, y, 0);
     });
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _screenSize = MediaQuery.of(context).size;
+    _updateViewport();
+  }
+
+  void _updateViewport() {
+    if (_screenSize == Size.zero) return;
+    final matrix = _transformationController.value;
+    final translation = matrix.getTranslation();
+    final scale = matrix.getMaxScaleOnAxis();
+    _currentViewport = Rect.fromLTWH(
+      -translation.x / scale,
+      -translation.y / scale,
+      _screenSize.width / scale,
+      _screenSize.height / scale,
+    ).inflate(100);
+  }
+
+  @override
   void dispose() {
+    _transformationController.removeListener(_updateViewport);
     _physicsSubscription?.cancel();
     _physicsEngine.dispose();
     _graphTickNotifier.dispose();
@@ -207,6 +236,7 @@ class _GraphScreenState extends State<GraphScreen>
               final hitNodeId = _hitTest(localTap);
               if (hitNodeId != null) {
                 setState(() => _draggingNodeId = hitNodeId);
+                _dragMoveCount = 0;
                 _physicsEngine.startDrag(hitNodeId);
                 if (DebugConstants.enableNodeTapLogging) {
                   _logger.logNodeDragStart(hitNodeId);
@@ -215,6 +245,10 @@ class _GraphScreenState extends State<GraphScreen>
             },
             onPointerMove: (PointerMoveEvent details) {
               if (_draggingNodeId != null) {
+                // Throttle: skip every other pointer event to halve raster load
+                _dragMoveCount++;
+                if (_dragMoveCount % 2 != 0) return;
+
                 final localTap = _getLocalOffset(details.localPosition);
 
                 final node = nodes[_draggingNodeId];
@@ -333,49 +367,14 @@ class _GraphScreenState extends State<GraphScreen>
                   }
                 },
                 child: SizedBox(
-                  width: 20000,
-                  height: 20000,
-                  child: Builder(
-                    builder: (context) {
-                      return AnimatedBuilder(
-                        animation: _transformationController,
-                        builder: (context, _) {
-                          final matrix = _transformationController.value;
-                          final translation = matrix.getTranslation();
-                          final scale = matrix.getMaxScaleOnAxis();
-                          final viewport = Rect.fromLTWH(
-                            -translation.x / scale,
-                            -translation.y / scale,
-                            MediaQuery.of(context).size.width / scale,
-                            MediaQuery.of(context).size.height / scale,
-                          ).inflate(100);
-
-                          if (DebugConstants.enableRendererLogging) {
-                            int renderedCount = 0;
-                            for (final node in nodes.values) {
-                              final nodeRect = Rect.fromCircle(
-                                center: node.position,
-                                radius: node.radius + 20,
-                              );
-                              if (viewport.overlaps(nodeRect)) {
-                                renderedCount++;
-                              }
-                            }
-                            debugPrint(
-                              'Rendered nodes: $renderedCount / ${nodes.length}',
-                            );
-                          }
-
-                          return GraphRenderer(
-                            nodes: nodes,
-                            links: links,
-                            tickNotifier: _graphTickNotifier,
-                            selectedNodeId: _selectedNodeForLink,
-                            viewport: viewport,
-                          );
-                        },
-                      );
-                    },
+                  width: 5000,
+                  height: 5000,
+                  child: GraphRenderer(
+                    nodes: nodes,
+                    links: links,
+                    tickNotifier: _graphTickNotifier,
+                    selectedNodeId: _selectedNodeForLink,
+                    viewport: _currentViewport,
                   ),
                 ),
               ),
@@ -399,7 +398,7 @@ class _GraphScreenState extends State<GraphScreen>
             left: _isSidebarOpen ? 0 : -300,
             width: 300,
             child: Material(
-              color: const Color(0xFF252525).withOpacity(0.95),
+              color: const Color.fromRGBO(37, 37, 37, 0.95),
               elevation: 10,
               child: SafeArea(
                 child: Column(

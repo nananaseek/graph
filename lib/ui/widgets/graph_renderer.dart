@@ -23,6 +23,8 @@ class GraphRenderer extends StatelessWidget {
   Widget build(BuildContext context) {
     return RepaintBoundary(
       child: CustomPaint(
+        isComplex: true,
+        size: Size.infinite,
         painter: GraphPainter(
           nodes: nodes,
           links: links,

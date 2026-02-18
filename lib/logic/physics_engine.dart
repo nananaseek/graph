@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:isolate';
 import 'dart:ui';
+import 'dart:typed_data';
 
 import '../core/constants.dart';
 import '../models/graph_link.dart';
@@ -26,7 +27,22 @@ class PhysicsEngine {
         completer.complete(message);
       } else if (message is PhysicsMessage) {
         if (message.command == PhysicsCommand.updateNodes) {
-          _updateController.add(message.data as Map<String, Offset>);
+          if (message.data is Map) {
+            final data = message.data as Map;
+            if (data.containsKey('ids') && data.containsKey('coords')) {
+              final ids = data['ids'] as List<String>;
+              final coords = data['coords'] as Float64List;
+
+              final updateMap = <String, Offset>{};
+              for (int i = 0; i < ids.length; i++) {
+                updateMap[ids[i]] = Offset(coords[i * 2], coords[i * 2 + 1]);
+              }
+              _updateController.add(updateMap);
+            } else if (message.data is Map<String, Offset>) {
+              // Fallback for any legacy messages (though we changed isolate)
+              _updateController.add(message.data as Map<String, Offset>);
+            }
+          }
         }
       }
     });

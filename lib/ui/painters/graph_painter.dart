@@ -10,7 +10,7 @@ class GraphPainter extends CustomPainter {
 
   // Pre-allocated Paint objects — avoids ~240 allocations/sec at 60fps
   final Paint _linePaint = Paint()
-    ..color = Colors.grey.withOpacity(0.4)
+    ..color = const Color.fromRGBO(158, 158, 158, 0.4)
     ..strokeWidth = 2.5
     ..style = PaintingStyle.stroke;
 
@@ -23,7 +23,7 @@ class GraphPainter extends CustomPainter {
     ..style = PaintingStyle.fill;
 
   final Paint _selectedGlowPaint = Paint()
-    ..color = Colors.yellowAccent.withOpacity(0.3);
+    ..color = const Color.fromRGBO(255, 255, 0, 0.3);
 
   final Paint _nodeBorderPaint = Paint()
     ..color = Colors.white
@@ -40,6 +40,12 @@ class GraphPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    // Hardware-level clipping — GPU discards draw commands outside viewport
+    if (viewport != null) {
+      canvas.save();
+      canvas.clipRect(viewport!);
+    }
+
     // Draw links first
     for (final link in links) {
       final source = nodes[link.sourceId];
@@ -90,6 +96,10 @@ class GraphPainter extends CustomPainter {
           node.position - Offset(node.textPainter!.width / 2, node.radius + 15),
         );
       }
+    }
+
+    if (viewport != null) {
+      canvas.restore();
     }
   }
 
