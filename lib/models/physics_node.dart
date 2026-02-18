@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:ui';
 
 /// Lightweight node representation for physics calculations in Isolate.
@@ -11,6 +12,9 @@ class PhysicsNode {
   double mass;
   double radius;
 
+  /// Cached sqrt(mass) — avoids recomputing every frame in gravity loop.
+  double sqrtMass;
+
   PhysicsNode({
     required this.id,
     required Offset position,
@@ -19,7 +23,10 @@ class PhysicsNode {
     this.mass = 1.0,
     this.radius = 18.0,
   }) : px = position.dx,
-       py = position.dy;
+       py = position.dy,
+       sqrtMass = sqrt(1.0) {
+    sqrtMass = sqrt(mass);
+  }
 
   PhysicsNode._raw({
     required this.id,
@@ -29,7 +36,9 @@ class PhysicsNode {
     this.vy = 0.0,
     this.mass = 1.0,
     this.radius = 18.0,
-  });
+  }) : sqrtMass = sqrt(1.0) {
+    sqrtMass = sqrt(mass);
+  }
 
   Offset get position => Offset(px, py);
 

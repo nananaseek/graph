@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:isolate';
-import 'dart:ui';
 import 'dart:math';
 import 'dart:typed_data';
+import 'dart:ui';
 
 import '../models/physics_node.dart';
 import 'quadtree.dart';
@@ -95,6 +95,7 @@ void physicsIsolateEntry(SendPort sendPort) {
 
   // Reusable force accumulator — avoids Offset allocations
   final ForceAccum forceAccum = ForceAccum();
+  final QuadtreeNodePool quadtreePool = QuadtreeNodePool();
 
   void recomputeDegrees() {
     nodeDegrees = {};
@@ -131,13 +132,20 @@ void physicsIsolateEntry(SendPort sendPort) {
       if (node.py > maxY) maxY = node.py;
     }
 
-    final boundary = Rect.fromLTRB(
-      minX - 500,
-      minY - 500,
-      maxX + 500,
-      maxY + 500,
+    final bLeft = minX - 500;
+    final bTop = minY - 500;
+    final bWidth = (maxX + 500) - bLeft;
+    final bHeight = (maxY + 500) - bTop;
+
+    quadtreePool.releaseAll();
+    final quadtree = Quadtree(
+      bLeft,
+      bTop,
+      bWidth,
+      bHeight,
+      theta: config.manyBodyTheta,
+      pool: quadtreePool,
     );
-    final quadtree = Quadtree(boundary, theta: config.manyBodyTheta);
 
     for (var node in nodes.values) {
       quadtree.insert(node);
@@ -232,7 +240,7 @@ void physicsIsolateEntry(SendPort sendPort) {
       final dist = sqrt(node.px * node.px + node.py * node.py);
       // Soft non-linear scaling: sqrt(dist / scale)
       final scaling = sqrt(dist / config.gravityDistanceScale);
-      final factor = config.gravityStrength * alpha * sqrt(node.mass) * scaling;
+      final factor = config.gravityStrength * alpha * node.sqrtMass * scaling;
 
       node.vx -= node.px * factor;
       node.vy -= node.py * factor;

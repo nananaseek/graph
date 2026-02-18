@@ -1,9 +1,12 @@
-import 'dart:math';
 import '../models/physics_node.dart';
-import 'dart:ui';
 
 class QuadtreeNode {
-  Rect boundary;
+  // Scalar boundary — avoids Rect allocations
+  double bLeft = 0;
+  double bTop = 0;
+  double bWidth = 0;
+  double bHeight = 0;
+
   double comX = 0; // center of mass X
   double comY = 0; // center of mass Y
   double totalMass = 0;
@@ -19,7 +22,35 @@ class QuadtreeNode {
   // Cached — updated on child insertion instead of recalculating via every()
   bool isLeaf = true;
 
-  QuadtreeNode(this.boundary);
+  QuadtreeNode();
+
+  void setBoundary(double left, double top, double width, double height) {
+    bLeft = left;
+    bTop = top;
+    bWidth = width;
+    bHeight = height;
+  }
+
+  double get bRight => bLeft + bWidth;
+  double get bBottom => bTop + bHeight;
+  double get bCenterX => bLeft + bWidth * 0.5;
+  double get bCenterY => bTop + bHeight * 0.5;
+
+  void reset(double left, double top, double width, double height) {
+    bLeft = left;
+    bTop = top;
+    bWidth = width;
+    bHeight = height;
+    comX = 0;
+    comY = 0;
+    totalMass = 0;
+    child0 = null;
+    child1 = null;
+    child2 = null;
+    child3 = null;
+    body = null;
+    isLeaf = true;
+  }
 
   QuadtreeNode? childAt(int index) {
     switch (index) {
@@ -55,6 +86,31 @@ class QuadtreeNode {
   }
 }
 
+/// Pool of QuadtreeNode objects — avoids GC pressure from per-frame allocations.
+/// ~6000-12000 allocations/sec eliminated at 60fps with 55+ nodes.
+class QuadtreeNodePool {
+  final List<QuadtreeNode> _pool = [];
+  int _index = 0;
+
+  QuadtreeNode acquire(double left, double top, double width, double height) {
+    if (_index < _pool.length) {
+      final node = _pool[_index++];
+      node.reset(left, top, width, height);
+      return node;
+    }
+    final node = QuadtreeNode();
+    node.setBoundary(left, top, width, height);
+    _pool.add(node);
+    _index++;
+    return node;
+  }
+
+  void releaseAll() => _index = 0;
+
+  int get activeCount => _index;
+  int get poolSize => _pool.length;
+}
+
 /// Mutable force accumulator — avoids Offset allocations in recursion.
 /// Safe for single-threaded use in isolate.
 class ForceAccum {
@@ -69,28 +125,39 @@ class ForceAccum {
 
 class Quadtree {
   QuadtreeNode? root;
-  final Rect boundary;
-  final double theta;
+  final double bLeft, bTop, bWidth, bHeight;
+  final double thetaSq; // Pre-squared theta for avoiding sqrt in BH check
+  final QuadtreeNodePool pool;
 
-  Quadtree(this.boundary, {this.theta = 0.9});
+  Quadtree(
+    this.bLeft,
+    this.bTop,
+    this.bWidth,
+    this.bHeight, {
+    double theta = 0.9,
+    required this.pool,
+  }) : thetaSq = theta * theta;
 
   void insert(PhysicsNode node) {
-    if (node.px < boundary.left ||
-        node.px > boundary.right ||
-        node.py < boundary.top ||
-        node.py > boundary.bottom) {
+    if (node.px < bLeft ||
+        node.px > bLeft + bWidth ||
+        node.py < bTop ||
+        node.py > bTop + bHeight) {
       return;
     }
-    root = _insertRecursive(root, boundary, node);
+    root = _insertRecursive(root, bLeft, bTop, bWidth, bHeight, node);
   }
 
   QuadtreeNode _insertRecursive(
     QuadtreeNode? node,
-    Rect boundary,
+    double left,
+    double top,
+    double width,
+    double height,
     PhysicsNode body,
   ) {
     if (node == null) {
-      final newNode = QuadtreeNode(boundary);
+      final newNode = pool.acquire(left, top, width, height);
       newNode.body = body;
       newNode.comX = body.px;
       newNode.comY = body.py;
@@ -121,24 +188,24 @@ class Quadtree {
   }
 
   void _insertToChild(QuadtreeNode node, PhysicsNode body) {
-    final cx = node.boundary.center.dx;
-    final cy = node.boundary.center.dy;
+    final cx = node.bCenterX;
+    final cy = node.bCenterY;
 
     // 0: TL, 1: TR, 2: BL, 3: BR
     int index = 0;
     if (body.px > cx) index += 1;
     if (body.py > cy) index += 2;
 
-    double x = node.boundary.left;
-    double y = node.boundary.top;
-    double w = node.boundary.width / 2;
-    double h = node.boundary.height / 2;
+    final hw = node.bWidth * 0.5;
+    final hh = node.bHeight * 0.5;
 
-    if (index == 1 || index == 3) x += w;
-    if (index == 2 || index == 3) y += h;
+    double x = node.bLeft;
+    double y = node.bTop;
 
-    final childRect = Rect.fromLTWH(x, y, w, h);
-    final result = _insertRecursive(node.childAt(index), childRect, body);
+    if (index == 1 || index == 3) x += hw;
+    if (index == 2 || index == 3) y += hh;
+
+    final result = _insertRecursive(node.childAt(index), x, y, hw, hh, body);
     node.setChild(index, result);
   }
 
@@ -192,7 +259,9 @@ class Quadtree {
     double distanceMax = 1000.0,
   }) {
     accum.reset();
-    _addForce(root, target, strength, alpha, distanceMin, distanceMax, accum);
+    final distMinSq = distanceMin * distanceMin;
+    final distMaxSq = distanceMax * distanceMax;
+    _addForce(root, target, strength, alpha, distMinSq, distMaxSq, accum);
   }
 
   void _addForce(
@@ -200,8 +269,8 @@ class Quadtree {
     PhysicsNode target,
     double strength,
     double alpha,
-    double distanceMin,
-    double distanceMax,
+    double distMinSq,
+    double distMaxSq,
     ForceAccum accum,
   ) {
     if (node == null || node.totalMass == 0) return;
@@ -212,23 +281,24 @@ class Quadtree {
 
     if (distSq == 0) return;
 
-    double distance = sqrt(distSq);
-    double width = node.boundary.width;
+    double widthSq = node.bWidth * node.bWidth;
 
-    if (node.isLeaf || (width / distance < theta)) {
+    if (node.isLeaf || (widthSq / distSq < thetaSq)) {
       // Skip self
       if (node.isLeaf && node.body == target) return;
 
-      // Clamp distance
-      if (distance < distanceMin) distance = distanceMin;
-      if (distance > distanceMax) return;
+      // Clamp via squared distances — avoid sqrt when possible
+      if (distSq > distMaxSq) return;
+      if (distSq < distMinSq) distSq = distMinSq;
 
       // D3-style: force = strength * alpha * mass / distance
-      final forceValue = strength * alpha * node.totalMass / distance;
-      final invDist = 1.0 / distance;
+      // = strength * alpha * mass / sqrt(distSq)
+      // Rewritten: dx * invDist * force = dx / dist * strength*alpha*mass / dist
+      //          = dx * strength * alpha * mass / distSq
+      final forceOverDist = strength * alpha * node.totalMass / distSq;
 
-      accum.x += dx * invDist * forceValue;
-      accum.y += dy * invDist * forceValue;
+      accum.x += dx * forceOverDist;
+      accum.y += dy * forceOverDist;
       return;
     }
 
@@ -239,8 +309,8 @@ class Quadtree {
         target,
         strength,
         alpha,
-        distanceMin,
-        distanceMax,
+        distMinSq,
+        distMaxSq,
         accum,
       );
     }
@@ -250,8 +320,8 @@ class Quadtree {
         target,
         strength,
         alpha,
-        distanceMin,
-        distanceMax,
+        distMinSq,
+        distMaxSq,
         accum,
       );
     }
@@ -261,8 +331,8 @@ class Quadtree {
         target,
         strength,
         alpha,
-        distanceMin,
-        distanceMax,
+        distMinSq,
+        distMaxSq,
         accum,
       );
     }
@@ -272,8 +342,8 @@ class Quadtree {
         target,
         strength,
         alpha,
-        distanceMin,
-        distanceMax,
+        distMinSq,
+        distMaxSq,
         accum,
       );
     }
