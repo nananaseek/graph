@@ -37,6 +37,10 @@ dependencies:
   uuid: ^4.5.2
   logger: ^2.6.2
   get_it: ^9.2.0
+  file_picker: ^8.0.0
+  file_saver: ^0.2.0
+  path_provider: ^2.1.2
+  permission_handler: ^11.3.0
 
 dev_dependencies:
   flutter_test:
@@ -54,6 +58,8 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
+  assets:
+    - assets/
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
