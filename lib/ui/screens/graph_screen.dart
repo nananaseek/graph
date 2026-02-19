@@ -106,6 +106,8 @@ class _GraphScreenState extends State<GraphScreen>
       final y = _screenSize.height / 2;
       _transformationController.value = Matrix4.translationValues(x, y, 0);
     });
+
+    _selectedNodeService.selectedNodeId.addListener(_onSelectionChanged);
   }
 
   /// Called when GraphDataService's visible nodes change (expand/collapse).
@@ -216,6 +218,7 @@ class _GraphScreenState extends State<GraphScreen>
     _graphTickNotifier.dispose();
     _draggingNodeId.dispose();
     _graphDataService.visibleTickNotifier.removeListener(_onDataServiceChanged);
+    _selectedNodeService.selectedNodeId.removeListener(_onSelectionChanged);
     _cameraService.dispose();
     super.dispose();
   }
@@ -267,6 +270,7 @@ class _GraphScreenState extends State<GraphScreen>
   }
 
   /// Double tap on a node → select it, open panel, animate camera.
+  /// also set focus to it.
   void _handleDoubleTap(Offset screenPos) {
     final localPos = _getLocalOffset(screenPos);
     final hitNodeId = _hitTest(localPos);
@@ -276,6 +280,9 @@ class _GraphScreenState extends State<GraphScreen>
 
       // Select node + open panel
       _selectedNodeService.selectNode(hitNodeId);
+      // Also set focus so visibility updates
+      _graphDataService.setFocus(hitNodeId);
+
       _selectedNodeService.openPanel();
 
       // Animate camera
@@ -287,7 +294,7 @@ class _GraphScreenState extends State<GraphScreen>
     }
   }
 
-  /// Long press (2s) on a node → expand/collapse slave nodes.
+  /// Long press (2s) on a node → set focus (update visibility).
   void _startLongPress(Offset screenPos) {
     final localPos = _getLocalOffset(screenPos);
     final hitNodeId = _hitTest(localPos);
@@ -297,7 +304,8 @@ class _GraphScreenState extends State<GraphScreen>
       _longPressTimer?.cancel();
       _longPressTimer = Timer(_longPressDuration, () {
         if (_longPressNodeId == hitNodeId) {
-          _toggleNodeExpansion(hitNodeId);
+          // Set focus on long press
+          _graphDataService.setFocus(hitNodeId);
         }
         _longPressNodeId = null;
       });
@@ -309,11 +317,10 @@ class _GraphScreenState extends State<GraphScreen>
     _longPressNodeId = null;
   }
 
-  void _toggleNodeExpansion(String nodeId) {
-    if (_graphDataService.isExpanded(nodeId)) {
-      _graphDataService.collapseChildren(nodeId);
-    } else {
-      _graphDataService.expandChildren(nodeId);
+  void _onSelectionChanged() {
+    final selectedId = _selectedNodeService.selectedNodeId.value;
+    if (selectedId != null) {
+      _graphDataService.setFocus(selectedId);
     }
   }
 

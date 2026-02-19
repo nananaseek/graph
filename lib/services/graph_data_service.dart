@@ -50,68 +50,82 @@ class GraphDataService {
   /// Returns the node by ID.
   GraphNode? getNode(String id) => allNodes[id];
 
-  /// Expands slave nodes of [nodeId] onto the canvas.
-  void expandChildren(String nodeId) {
+  /// Currently focused node ID.
+  final ValueNotifier<String?> focusedNodeId = ValueNotifier(null);
+
+  /// Helper to get the parent of a node.
+  GraphNode? getParent(String nodeId) {
     final node = allNodes[nodeId];
-    if (node == null || node.childrenIds.isEmpty) return;
-    if (_expandedNodeIds.contains(nodeId)) return;
+    if (node == null || node.parentId == null) return null;
+    return allNodes[node.parentId];
+  }
 
-    _expandedNodeIds.add(nodeId);
+  /// Sets the currently focused node and updates visibility.
+  void setFocus(String? nodeId) {
+    if (focusedNodeId.value == nodeId) return;
+    focusedNodeId.value = nodeId;
+    updateVisibility();
+  }
 
-    // Calculate child positions in a circle around the parent
-    final children = getChildren(nodeId);
-    final positions = _getChildPositions(node, children.length);
+  /// Updates the set of visible nodes based on focus rules.
+  /// 1. Roots are always visible.
+  /// 2. Active Path (ancestors of focused) are visible.
+  /// 3. Children of focused node are visible.
+  void updateVisibility() {
+    final newVisibleNodes = <String, GraphNode>{};
 
-    for (int i = 0; i < children.length; i++) {
-      final child = children[i];
-      child.position = positions[i];
-      child.appearanceScale = 0.0; // Will animate in
-      visibleNodes[child.id] = child;
-    }
-
-    // Add links from parent to children
-    for (final child in children) {
-      final link = allLinks.firstWhere(
-        (l) =>
-            (l.sourceId == nodeId && l.targetId == child.id) ||
-            (l.sourceId == child.id && l.targetId == nodeId),
-        orElse: () {
-          final newLink = GraphLink(nodeId, child.id);
-          allLinks.add(newLink);
-          return newLink;
-        },
-      );
-      if (!visibleLinks.contains(link)) {
-        visibleLinks.add(link);
+    // 1. Root nodes always visible
+    for (final node in allNodes.values) {
+      if (node.isMaster) {
+        newVisibleNodes[node.id] = node;
       }
     }
 
-    _rebuildVisibleLinks();
-    visibleTickNotifier.value++;
-  }
+    final focusId = focusedNodeId.value;
+    if (focusId != null && allNodes.containsKey(focusId)) {
+      var currentId = focusId;
 
-  /// Collapses slave nodes of [nodeId], removing them from the canvas.
-  void collapseChildren(String nodeId) {
-    if (!_expandedNodeIds.contains(nodeId)) return;
-    _expandedNodeIds.remove(nodeId);
+      // 2. Active Path (Ancestors)
+      // Traverse up from focused node to root, ensuring all are visible
+      while (true) {
+        final node = allNodes[currentId];
+        if (node == null) break;
 
-    final node = allNodes[nodeId];
-    if (node == null) return;
+        newVisibleNodes[node.id] = node;
 
-    // Recursively collapse grandchildren first
-    for (final childId in node.childrenIds) {
-      collapseChildren(childId);
-      visibleNodes.remove(childId);
+        if (node.parentId == null) break;
+        currentId = node.parentId!;
+      }
+
+      // 3. Children of focused node
+      final focusedNode = allNodes[focusId];
+      if (focusedNode != null && focusedNode.childrenIds.isNotEmpty) {
+        final children = getChildren(focusId);
+        // Calculate positions if needed (using existing logic)
+        final positions = _getChildPositions(focusedNode, children.length);
+
+        for (int i = 0; i < children.length; i++) {
+          final child = children[i];
+          // If child was not already visible, set its position and animate
+          if (!visibleNodes.containsKey(child.id)) {
+            child.position = positions[i];
+            child.appearanceScale = 0.0;
+          }
+          newVisibleNodes[child.id] = child;
+        }
+      }
     }
 
+    // Update visibleNodes map
+    visibleNodes.clear();
+    visibleNodes.addAll(newVisibleNodes);
+
+    // Rebuild links
     _rebuildVisibleLinks();
     visibleTickNotifier.value++;
   }
 
-  /// Whether children of [nodeId] are currently expanded on canvas.
-  bool isExpanded(String nodeId) => _expandedNodeIds.contains(nodeId);
-
-  /// Pre-calculate positions for N children around a parent node.
+  /// Helper to get cached or calculated positions for children.
   List<Offset> _getChildPositions(GraphNode parent, int count) {
     final cacheKey = '${parent.id}_$count';
     if (_childPositionCache.containsKey(cacheKey)) {
@@ -250,12 +264,7 @@ class GraphDataService {
           .toList();
     }
 
-    // Only master nodes visible on start
-    for (final id in masterIds) {
-      visibleNodes[id] = allNodes[id]!;
-    }
-    _rebuildVisibleLinks();
-
-    visibleTickNotifier.value++;
+    // Initial visibility update (roots only)
+    updateVisibility();
   }
 }
