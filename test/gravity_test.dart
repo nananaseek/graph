@@ -58,9 +58,6 @@ void main() {
     );
     final newPos = updates["test"]!;
 
-    print("Old Pos: (100, 100)");
-    print("New Pos: $newPos");
-
     // Check if it moved closer to (0,0)
     // Distance should be less than start distance (approx 141.4)
     final oldDist = const Offset(100, 100).distance;

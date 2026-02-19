@@ -16,6 +16,7 @@ import 'package:graph/models/graph_link.dart';
 import 'package:graph/services/graph_data_service.dart';
 import 'package:graph/services/selected_node_service.dart';
 import 'package:graph/services/camera_service.dart';
+import 'package:graph/services/debug_service.dart';
 
 // Fake Classes (minimal implementation for smoke test)
 class FakePhysicsEngine implements PhysicsEngine {
@@ -90,6 +91,7 @@ void main() {
     getIt.registerSingleton<GraphDataService>(GraphDataService());
     getIt.registerSingleton<SelectedNodeService>(SelectedNodeService());
     getIt.registerSingleton<CameraService>(CameraService());
+    getIt.registerSingleton<DebugService>(DebugService());
   });
 
   tearDown(() {

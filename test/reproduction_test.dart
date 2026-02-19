@@ -10,6 +10,7 @@ import 'package:graph/models/graph_link.dart';
 import 'package:graph/services/graph_data_service.dart';
 import 'package:graph/services/selected_node_service.dart';
 import 'package:graph/services/camera_service.dart';
+import 'package:graph/services/debug_service.dart';
 
 // Fake Classes
 class FakePhysicsEngine implements PhysicsEngine {
@@ -84,6 +85,7 @@ void main() {
     getIt.registerSingleton<GraphDataService>(GraphDataService());
     getIt.registerSingleton<SelectedNodeService>(SelectedNodeService());
     getIt.registerSingleton<CameraService>(CameraService());
+    getIt.registerSingleton<DebugService>(DebugService());
   });
 
   tearDown(() {
@@ -103,7 +105,6 @@ void main() {
 
     final GraphRenderer initialRenderer = tester.widget(rendererFinder);
     final initialViewport = initialRenderer.viewport;
-    print("Initial Viewport: $initialViewport");
 
     // 3. Find InteractiveViewer and pan
     final viewerFinder = find.byType(InteractiveViewer);
@@ -116,7 +117,6 @@ void main() {
     // 4. Get viewport again
     final GraphRenderer updatedRenderer = tester.widget(rendererFinder);
     final updatedViewport = updatedRenderer.viewport;
-    print("Updated Viewport: $updatedViewport");
 
     // 5. Assert viewport has changed
     // If the bug exists, these will be equal because GraphScreen didn't rebuild

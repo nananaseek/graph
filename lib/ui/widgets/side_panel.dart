@@ -6,16 +6,11 @@ import '../../services/camera_service.dart';
 import '../../services/debug_service.dart';
 import '../../models/graph_node.dart';
 
-/// Side panel widget with drill-down navigation.
-///
-/// Fully isolated from the canvas — uses its own ValueListenableBuilders
-/// and never triggers canvas repaints.
 class SidePanel extends StatelessWidget {
   final double screenWidth;
 
   const SidePanel({super.key, required this.screenWidth});
 
-  // Screen size cached from parent - kept here for easy access by _onNodeTap
   static Size? _cachedScreenSize;
 
   static void updateScreenSize(Size size) {
@@ -79,7 +74,6 @@ class _PanelContent extends StatelessWidget {
           );
         }
 
-        // Drill-down — show selected node details
         final currentNodeId = stack.last;
         final currentNode = graphDataService.getNode(currentNodeId);
         if (currentNode == null) {
@@ -159,7 +153,6 @@ class _PanelContent extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             children: [
               const SizedBox(height: 12),
-              // Node info card OR Editor
               if (isEditMode)
                 _NodeEditor(node: node, onUpdate: gds.updateNode)
               else
@@ -180,10 +173,6 @@ class _PanelContent extends StatelessWidget {
                   label: 'Delete Node',
                   color: Colors.redAccent,
                   onTap: () {
-                    // Confirm dialog?
-                    // For now direct delete or maybe a simple check
-                    // The task says "delete node".
-                    // Ideally we show a dialog, but I'll implement direct first or basic dialog.
                     _showDeleteConfirm(context, node, gds, sns);
                   },
                 ),
@@ -192,8 +181,6 @@ class _PanelContent extends StatelessWidget {
                 const SizedBox(height: 12),
               ],
 
-              // Slave nodes section
-              // ... existing logic ...
               if (children.isNotEmpty) ...[
                 const Text(
                   'Підпорядковані ноди',
@@ -257,6 +244,7 @@ class _PanelContent extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
+          // ignore: use_null_aware_elements
           if (trailing != null) trailing,
           IconButton(
             icon: const Icon(Icons.close, color: Colors.white54),
@@ -317,7 +305,6 @@ class _PanelContent extends StatelessWidget {
       ),
     );
   }
-  
 
   void _showDeleteConfirm(
     BuildContext context,
@@ -325,11 +312,9 @@ class _PanelContent extends StatelessWidget {
     GraphDataService gds,
     SelectedNodeService sns,
   ) {
-    // Only show dialog if node has children
     final hasChildren = node.childrenIds.isNotEmpty;
 
     if (!hasChildren) {
-      // Direct delete if no children (optional safety check can be added later)
       sns.navigateBack();
       gds.deleteNode(node.id);
       return;
@@ -481,15 +466,17 @@ class _NodeEditorState extends State<_NodeEditor> {
   void initState() {
     super.initState();
     _nameCtrl = TextEditingController(text: widget.node.name);
-    _moneyCtrl = TextEditingController(text: widget.node.selfGeneratedMoney.toStringAsFixed(0));
+    _moneyCtrl = TextEditingController(
+      text: widget.node.selfGeneratedMoney.toStringAsFixed(0),
+    );
   }
-  
+
   @override
   void didUpdateWidget(_NodeEditor oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.node.id != widget.node.id) {
-       _nameCtrl.text = widget.node.name;
-       _moneyCtrl.text = widget.node.selfGeneratedMoney.toStringAsFixed(0);
+      _nameCtrl.text = widget.node.name;
+      _moneyCtrl.text = widget.node.selfGeneratedMoney.toStringAsFixed(0);
     }
   }
 
@@ -502,7 +489,8 @@ class _NodeEditorState extends State<_NodeEditor> {
 
   void _save() {
     final name = _nameCtrl.text;
-    final money = double.tryParse(_moneyCtrl.text) ?? widget.node.selfGeneratedMoney;
+    final money =
+        double.tryParse(_moneyCtrl.text) ?? widget.node.selfGeneratedMoney;
     widget.onUpdate(widget.node.id, name: name, money: money);
   }
 
@@ -518,7 +506,14 @@ class _NodeEditorState extends State<_NodeEditor> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('EDIT NODE', style: TextStyle(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.bold)),
+          const Text(
+            'EDIT NODE',
+            style: TextStyle(
+              color: Colors.amber,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 12),
           TextField(
             controller: _nameCtrl,
@@ -526,8 +521,12 @@ class _NodeEditorState extends State<_NodeEditor> {
             decoration: const InputDecoration(
               labelText: 'Name',
               labelStyle: TextStyle(color: Colors.white54),
-              enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
-              focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.amber)),
+              enabledBorder: UnderlineInputBorder(
+                borderSide: BorderSide(color: Colors.white24),
+              ),
+              focusedBorder: UnderlineInputBorder(
+                borderSide: BorderSide(color: Colors.amber),
+              ),
             ),
             onChanged: (_) => _save(),
           ),
@@ -539,17 +538,28 @@ class _NodeEditorState extends State<_NodeEditor> {
             decoration: const InputDecoration(
               labelText: 'Self Generated Money',
               labelStyle: TextStyle(color: Colors.white54),
-              enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
-              focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.amber)),
+              enabledBorder: UnderlineInputBorder(
+                borderSide: BorderSide(color: Colors.white24),
+              ),
+              focusedBorder: UnderlineInputBorder(
+                borderSide: BorderSide(color: Colors.amber),
+              ),
               suffixText: '₴',
               suffixStyle: TextStyle(color: Colors.amber),
             ),
-             onChanged: (_) => _save(),
+            onChanged: (_) => _save(),
           ),
           const SizedBox(height: 8),
           const Align(
-             alignment: Alignment.centerRight,
-             child: Text('Changes auto-saved', style: TextStyle(color: Colors.white24, fontSize: 10, fontStyle: FontStyle.italic)),
+            alignment: Alignment.centerRight,
+            child: Text(
+              'Changes auto-saved',
+              style: TextStyle(
+                color: Colors.white24,
+                fontSize: 10,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
           ),
         ],
       ),

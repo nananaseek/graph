@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:graph/models/graph_node.dart';
 import 'package:graph/services/graph_data_service.dart';
-import 'package:graph/core/service_locator.dart';
+
 import 'package:get_it/get_it.dart';
 import 'package:graph/services/debug_service.dart'; // Import DebugService if needed for service locator
 

@@ -37,9 +37,8 @@ class CameraService {
     final tx = screenSize.width / 2 - nodePosition.dx * scale;
     final ty = screenSize.height / 2 - nodePosition.dy * scale;
 
-    final endMatrix = Matrix4.identity()
-      ..translate(tx, ty)
-      ..scale(scale);
+    final endMatrix = Matrix4.translationValues(tx, ty, 0)
+      ..multiply(Matrix4.diagonal3Values(scale, scale, 1.0));
 
     _startMatrix = controller.value.clone();
     _endMatrix = endMatrix;

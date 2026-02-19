@@ -16,8 +16,8 @@ class DebugPanel extends StatelessWidget {
     return Container(
       width: 280,
       color: Colors.black87,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: ListView(
+        padding: EdgeInsets.zero,
         children: [
           // Header
           Padding(
@@ -26,12 +26,15 @@ class DebugPanel extends StatelessWidget {
               children: [
                 const Icon(Icons.bug_report, color: Colors.amber),
                 const SizedBox(width: 8),
-                const Text(
-                  'DEBUG MENU',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                const Expanded(
+                  child: Text(
+                    'DEBUG MENU',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 const Spacer(),
@@ -58,7 +61,7 @@ class DebugPanel extends StatelessWidget {
                   style: TextStyle(color: Colors.white54, fontSize: 12),
                 ),
                 value: isEdit,
-                activeColor: Colors.amber,
+                activeThumbColor: Colors.amber,
                 onChanged: (val) => debugService.isEditMode.value = val,
               );
             },
@@ -77,7 +80,7 @@ class DebugPanel extends StatelessWidget {
                   style: TextStyle(color: Colors.white54, fontSize: 12),
                 ),
                 value: showAll,
-                activeColor: Colors.amber,
+                activeThumbColor: Colors.amber,
                 onChanged: (val) {
                   debugService.showAllNodes.value = val;
                   // Trigger visibility update
@@ -85,6 +88,90 @@ class DebugPanel extends StatelessWidget {
                 },
               );
             },
+          ),
+
+          const Divider(color: Colors.white24),
+
+          // Actions
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 8.0,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Actions',
+                  style: TextStyle(
+                    color: Colors.white54,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    try {
+                      await graphService.exportGraph();
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Graph exported successfully!'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Export failed: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  icon: const Icon(Icons.download),
+                  label: const Text('Export Graph JSON'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blueGrey,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    try {
+                      await graphService.importGraph();
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Graph imported successfully!'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Import failed: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  icon: const Icon(Icons.upload),
+                  label: const Text('Import Graph JSON'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blueGrey,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ),
           ),
 
           const Divider(color: Colors.white24),
@@ -105,7 +192,7 @@ class DebugPanel extends StatelessWidget {
                 const SizedBox(height: 8),
                 ValueListenableBuilder<int>(
                   valueListenable: graphService.visibleTickNotifier,
-                  builder: (context, _, __) {
+                  builder: (context, _, child) {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [

@@ -3,7 +3,6 @@ import 'package:graph/models/graph_node.dart';
 import 'package:graph/services/graph_data_service.dart';
 import 'package:graph/services/debug_service.dart';
 import 'package:get_it/get_it.dart';
-import 'package:flutter/material.dart';
 
 void main() {
   late GraphDataService graphDataService;

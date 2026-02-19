@@ -19,7 +19,6 @@ class PhysicsEngine {
 
   Future<void> init(Map<String, GraphNode> nodes, List<GraphLink> links) async {
     if (_isolate != null) {
-      // Already initialized, just update graph
       setGraph(nodes, links);
       return;
     }
@@ -45,7 +44,6 @@ class PhysicsEngine {
               }
               _updateController.add(updateMap);
             } else if (message.data is Map<String, Offset>) {
-              // Fallback for any legacy messages (though we changed isolate)
               _updateController.add(message.data as Map<String, Offset>);
             }
           }
@@ -55,7 +53,6 @@ class PhysicsEngine {
 
     _sendPort = await completer.future;
 
-    // Send initial data
     setGraph(nodes, links);
   }
 

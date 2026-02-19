@@ -11,6 +11,7 @@ import 'package:graph/models/graph_link.dart';
 import 'package:graph/services/graph_data_service.dart';
 import 'package:graph/services/selected_node_service.dart';
 import 'package:graph/services/camera_service.dart';
+import 'package:graph/services/debug_service.dart';
 
 // Fake Classes
 class FakePhysicsEngine implements PhysicsEngine {
@@ -92,26 +93,6 @@ class FakeGraphDataService implements GraphDataService {
   final ValueNotifier<String?> focusedNodeId = ValueNotifier(null);
 
   @override
-  void initMockData() {
-    allNodes.clear();
-    visibleNodes.clear();
-
-    final node = GraphNode(
-      id: "node1",
-      position: const Offset(100, 100),
-      name: "Master Node 1",
-      label: "Master Node 1",
-      mass: 30,
-      radius: 20,
-      appearanceScale: 1.0,
-    );
-
-    allNodes[node.id] = node;
-    visibleNodes[node.id] = node;
-    visibleTickNotifier.value++;
-  }
-
-  @override
   GraphNode? getParent(String nodeId) => null;
 
   @override
@@ -135,9 +116,6 @@ class FakeGraphDataService implements GraphDataService {
   List<GraphLink> get allLinks => [];
 
   @override
-  void addNode(GraphNode node) {}
-
-  @override
   void updateVisibility() {}
 
   @override
@@ -148,6 +126,35 @@ class FakeGraphDataService implements GraphDataService {
 
   @override
   void deleteNode(String nodeId) {}
+
+  @override
+  final ValueNotifier<bool> isLoading = ValueNotifier(false);
+
+  @override
+  Future<void> loadDemoData() async {
+    allNodes.clear();
+    visibleNodes.clear();
+
+    final node = GraphNode(
+      id: "node1",
+      position: const Offset(100, 100),
+      name: "Master Node 1",
+      label: "Master Node 1",
+      mass: 30,
+      radius: 20,
+      appearanceScale: 1.0,
+    );
+
+    allNodes[node.id] = node;
+    visibleNodes[node.id] = node;
+    visibleTickNotifier.value++;
+  }
+
+  @override
+  Future<void> exportGraph() async {}
+
+  @override
+  Future<void> importGraph() async {}
 
   @override
   void updateNode(String nodeId, {String? name, double? money}) {}
@@ -161,6 +168,7 @@ void main() {
     getIt.registerSingleton<GraphDataService>(FakeGraphDataService());
     getIt.registerSingleton<SelectedNodeService>(SelectedNodeService());
     getIt.registerSingleton<CameraService>(CameraService());
+    getIt.registerSingleton<DebugService>(DebugService());
   });
 
   tearDown(() {

@@ -7,6 +7,14 @@ import 'package:uuid/uuid.dart';
 import '../models/graph_node.dart';
 import '../models/graph_link.dart';
 import '../core/service_locator.dart';
+import 'dart:convert';
+import 'package:flutter/services.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:file_saver/file_saver.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'dart:io';
+
 import 'debug_service.dart';
 
 /// Service managing the full node graph, hierarchy, and visible subset.
@@ -24,6 +32,7 @@ class GraphDataService {
 
   /// Currently visible nodes on the canvas.
   final ValueNotifier<int> visibleTickNotifier = ValueNotifier(0);
+  final ValueNotifier<bool> isLoading = ValueNotifier(false);
   final Map<String, GraphNode> visibleNodes = {};
 
   /// Currently visible links (only between visible nodes).
@@ -193,17 +202,13 @@ class GraphDataService {
     // Position randomly near center or offset
     final node = GraphNode(
       id: id,
-      position: const Offset(
-        100,
-        100,
-      ), // Default position, forces user to drag?
+      position: const Offset(100, 100),
       label: 'New Root',
       name: 'New Root',
       selfGeneratedMoney: 0,
     );
     allNodes[id] = node;
 
-    // Automatically focus on it? Or just show it.
     // Roots are always visible.
     updateVisibility();
   }
@@ -234,8 +239,6 @@ class GraphDataService {
     node.connectionCount = 1;
     node.attachedNodeIds.add(parentId);
 
-    // If we create a slave, we probably want to see it.
-    // Ensure parent is focused or visible.
     updateVisibility();
   }
 
@@ -293,16 +296,160 @@ class GraphDataService {
     if (name != null) node.name = name;
     if (money != null) node.selfGeneratedMoney = money;
 
-    // Trigger update? Notifiers?
-    // SidePanel might need to know if it's showing this node.
-    // For now, SidePanel rebuilds when selection changes, but not when data changes?
-    // We might need a "nodeUpdated" notifier or similar if we want instant UI feedback while editing?
-    // Or just call updateVisibility (which triggers visibleTick)?
     visibleTickNotifier.value++;
   }
 
-  /// Initialize with mock hierarchical data.
-  void initMockData() {
+  /// Loads demo data from assets.
+  Future<void> loadDemoData() async {
+    try {
+      isLoading.value = true;
+
+      // Artificial delay to show loading state (optional, but good for UX feel)
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      final jsonString = await rootBundle.loadString('assets/demo_graph.json');
+      final List<dynamic> jsonList = jsonDecode(jsonString);
+
+      _parseAndLoadGraph(jsonList);
+    } catch (e) {
+      debugPrint('Error loading demo data: $e');
+      // Fallback or error handling?
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  /// Exports the current graph to a JSON file.
+  Future<void> exportGraph() async {
+    try {
+      isLoading.value = true;
+
+      // We only need to export master nodes.
+      // Their toJson() method recursively exports children.
+      final jsonList = masterNodes
+          .map((node) => node.toJson(allNodes: allNodes))
+          .toList();
+
+      final jsonString = const JsonEncoder.withIndent('  ').convert(jsonList);
+      final bytes = Uint8List.fromList(utf8.encode(jsonString));
+      final fileName =
+          'graph_export_${DateTime.now().millisecondsSinceEpoch}.json';
+
+      if (kIsWeb) {
+        await FileSaver.instance.saveFile(
+          name: 'graph_export', // FileSaver handles extension
+          ext: 'json',
+          bytes: bytes,
+        );
+      } else if (Platform.isAndroid || Platform.isIOS) {
+        // Mobile: Save directly to Downloads/Documents
+
+        // Request storage permission on Android if needed
+        if (Platform.isAndroid) {
+          final status = await Permission.storage.status;
+          if (!status.isGranted) {
+            await Permission.storage.request();
+
+            // For Android 11+ (API 30+) scoped storage, MANAGE_EXTERNAL_STORAGE might be needed
+            // but usually regular storage permission or just writing to app-specific dirs is enough.
+            // However, getDownloadsDirectory returns a public directory.
+
+            // If standard storage permission is denied, check for manageable constraints or just proceed
+            // and let the OS handle it (sometimes it works for media/downloads without full perms on newer Androids)
+            // But for now, we'll log it.
+            debugPrint('Storage permission denied');
+
+            // Optionally throw or return to stop
+            throw Exception('Storage permission denied');
+          }
+        }
+
+        final directory =
+            await getDownloadsDirectory() ??
+            await getApplicationDocumentsDirectory();
+        final path = '${directory.path}/$fileName';
+        final file = File(path);
+        await file.writeAsBytes(bytes);
+        debugPrint('Saved to $path');
+        // Optional: Show a message or notification? The UI handles success based on no error thrown.
+      } else {
+        // Desktop: Save As Dialog
+        final result = await FileSaver.instance.saveAs(
+          name: fileName,
+          bytes: bytes,
+          ext: 'json',
+          mimeType: MimeType.json,
+        );
+        debugPrint('Saved to $result');
+      }
+    } catch (e) {
+      debugPrint('Error exporting graph: $e');
+      rethrow; // Let UI handle error
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  /// Imports a graph from a JSON file.
+  Future<void> importGraph() async {
+    try {
+      String? initialDirectory;
+      if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+        if (Platform.isAndroid) {
+          final status = await Permission.storage.request();
+          if (!status.isGranted) {
+            debugPrint('Storage permission denied');
+            throw Exception('Storage permission denied');
+          }
+        }
+        final directory = await getDownloadsDirectory();
+        initialDirectory = directory?.path;
+      }
+
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+        initialDirectory: initialDirectory,
+        withData: true, // Important for Web/WASM
+      );
+
+      if (result == null || result.files.isEmpty) return;
+
+      isLoading.value = true;
+
+      final file = result.files.first;
+
+      String jsonString;
+      if (kIsWeb) {
+        final bytes = file.bytes;
+        if (bytes == null) throw Exception('File bytes are null');
+        jsonString = utf8.decode(bytes);
+      } else {
+        // On Mobile/Desktop, strictly read from path if bytes are empty (though withData: true should give bytes)
+        // But FilePicker documentation says: "File content (bytes) is available only if [withData] is true.
+        // If [withData] is false, use [path] to read the file."
+        // We set withData: true, but just in case, or for large files:
+        if (file.bytes != null) {
+          jsonString = utf8.decode(file.bytes!);
+        } else if (file.path != null) {
+          jsonString = await File(file.path!).readAsString();
+        } else {
+          throw Exception('Unable to read file content');
+        }
+      }
+
+      final List<dynamic> jsonList = jsonDecode(jsonString);
+
+      _parseAndLoadGraph(jsonList);
+    } catch (e) {
+      debugPrint('Error importing graph: $e');
+      rethrow;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  void _parseAndLoadGraph(List<dynamic> jsonList) {
     allNodes.clear();
     allLinks.clear();
     visibleNodes.clear();
@@ -310,93 +457,61 @@ class GraphDataService {
     _expandedNodeIds.clear();
     _childPositionCache.clear();
 
-    final rng = Random(42);
+    // 1. First pass: Create all nodes
+    // The JSON structure is hierarchical (List of Roots, which have Children).
+    // We need to flatten this into allNodes.
 
-    // --- Master nodes ---
-    final masterData = [
-      ('Alpha Network', 15200.0),
-      ('Beta Hub', 8730.0),
-      ('Gamma Core', 22100.0),
-      ('Delta Node', 5400.0),
-      ('Epsilon Cluster', 31050.0),
-    ];
-
-    final masterIds = <String>[];
-
-    for (int i = 0; i < masterData.length; i++) {
-      final id = _uuid.v4();
-      final angle = (2 * pi / masterData.length) * i - pi / 2;
-      final dist = 180.0 + rng.nextDouble() * 60;
-
-      final node = GraphNode(
-        id: id,
-        position: Offset(cos(angle) * dist, sin(angle) * dist),
-        label: masterData[i].$1,
-        name: masterData[i].$1,
-        selfGeneratedMoney: masterData[i].$2,
-      );
-
-      allNodes[id] = node;
-      masterIds.add(id);
+    for (final nodeJson in jsonList) {
+      _parseNodeRecursive(nodeJson);
     }
 
-    // Links between some master nodes
-    allLinks.add(GraphLink(masterIds[0], masterIds[1]));
-    allLinks.add(GraphLink(masterIds[0], masterIds[2]));
-    allLinks.add(GraphLink(masterIds[1], masterIds[3]));
-    allLinks.add(GraphLink(masterIds[2], masterIds[4]));
-    allLinks.add(GraphLink(masterIds[3], masterIds[4]));
+    // 2. Second pass: Reconstruct Links from attachedNodeIds
+    // Since attachedNodeIds are stored, we can rebuild links.
+    // However, graph links are undirected edges stored distinctly.
+    // To avoid duplicates (A-B and B-A), we can check existence.
 
-    // --- Slave nodes (level 2) ---
-    for (final masterId in masterIds) {
-      final childCount = 2 + rng.nextInt(4); // 2..5 children
-      for (int j = 0; j < childCount; j++) {
-        final childId = _uuid.v4();
-        final childNode = GraphNode(
-          id: childId,
-          position: Offset.zero, // Will be positioned on expand
-          label: '${allNodes[masterId]!.label} L$j',
-          name: '${allNodes[masterId]!.name} — Slave $j',
-          selfGeneratedMoney: (rng.nextDouble() * 5000).roundToDouble(),
-          parentId: masterId,
-        );
-        allNodes[childId] = childNode;
-        allNodes[masterId]!.childrenIds.add(childId);
-        allLinks.add(GraphLink(masterId, childId));
+    final processedPairs = <String>{};
 
-        // --- Level 3 slaves (some children have sub-children) ---
-        if (rng.nextBool()) {
-          final subCount = 1 + rng.nextInt(3);
-          for (int k = 0; k < subCount; k++) {
-            final subId = _uuid.v4();
-            final subNode = GraphNode(
-              id: subId,
-              position: Offset.zero,
-              label: '${childNode.label}.$k',
-              name: '${childNode.name} — Sub $k',
-              selfGeneratedMoney: (rng.nextDouble() * 1000).roundToDouble(),
-              parentId: childId,
-            );
-            allNodes[subId] = subNode;
-            childNode.childrenIds.add(subId);
-            allLinks.add(GraphLink(childId, subId));
-          }
+    for (final node in allNodes.values) {
+      for (final attachedId in node.attachedNodeIds) {
+        if (!allNodes.containsKey(attachedId)) continue;
+
+        // Create a unique key for the pair to check if link already exists
+        final id1 = node.id.compareTo(attachedId) < 0 ? node.id : attachedId;
+        final id2 = node.id.compareTo(attachedId) < 0 ? attachedId : node.id;
+        final pairKey = '$id1-$id2';
+
+        if (!processedPairs.contains(pairKey)) {
+          allLinks.add(GraphLink(id1, id2));
+          processedPairs.add(pairKey);
         }
       }
-    }
 
-    // Update connection counts
-    for (final node in allNodes.values) {
-      node.connectionCount = allLinks
-          .where((l) => l.sourceId == node.id || l.targetId == node.id)
+      // Recalculate connection count based on valid attached ID refs
+      node.connectionCount = node.attachedNodeIds
+          .where((id) => allNodes.containsKey(id))
           .length;
-      node.attachedNodeIds = allLinks
-          .where((l) => l.sourceId == node.id || l.targetId == node.id)
-          .map((l) => l.sourceId == node.id ? l.targetId : l.sourceId)
-          .toList();
     }
 
-    // Initial visibility update (roots only)
     updateVisibility();
+  }
+
+  void _parseNodeRecursive(Map<String, dynamic> json) {
+    // 1. Create the node itself
+    final node = GraphNode.fromJson(json);
+    allNodes[node.id] = node;
+
+    // 2. Process children
+    if (json.containsKey('children')) {
+      final childrenJson = json['children'] as List<dynamic>;
+      for (final childJson in childrenJson) {
+        // Ensure child knows its parent (should be in JSON, but enforce it)
+        childJson['parentId'] = node.id;
+        _parseNodeRecursive(childJson as Map<String, dynamic>);
+
+        // Ensure parent knows about child (GraphNode.fromJson initializes empty childrenIds)
+        node.childrenIds.add(childJson['id'] as String);
+      }
+    }
   }
 }

@@ -16,6 +16,7 @@ import '../../core/constants.dart';
 import '../widgets/graph_renderer.dart';
 import '../widgets/side_panel.dart';
 import '../widgets/debug_panel.dart';
+import '../widgets/loading_overlay.dart';
 
 /// Tracks when a node's appearance animation starts (relative to the overall start).
 class _NodeAppearSchedule {
@@ -77,16 +78,14 @@ class _GraphScreenState extends State<GraphScreen>
 
     _cameraService.init(_transformationController, this);
 
-    // Initialize mock data
-    _graphDataService.initMockData();
+    // Initialize demo data
+    _graphDataService.loadDemoData();
 
     // Listen to expand/collapse changes in the data service
     _graphDataService.visibleTickNotifier.addListener(_onDataServiceChanged);
 
-    Future.delayed(Duration.zero, () {
-      if (nodes.isEmpty) return;
-
-      _physicsEngine.init(nodes, links);
+    Future.delayed(Duration.zero, () async {
+      await _physicsEngine.init(nodes, links);
 
       _physicsSubscription = _physicsEngine.onUpdate.listen((positions) {
         for (var entry in positions.entries) {
@@ -97,6 +96,8 @@ class _GraphScreenState extends State<GraphScreen>
         }
         _graphTickNotifier.value++;
       });
+
+      _physicsEngine.setGraph(nodes, links);
 
       _recalculateNodeSizes();
       _startNodeAppearanceAnimation();
@@ -115,7 +116,6 @@ class _GraphScreenState extends State<GraphScreen>
 
   /// Called when GraphDataService's visible nodes change (expand/collapse).
   void _onDataServiceChanged() {
-    // Sync physics engine with new visible nodes & links - reuse isolate
     _physicsEngine.setGraph(nodes, links);
     _recalculateNodeSizes();
 
@@ -272,8 +272,6 @@ class _GraphScreenState extends State<GraphScreen>
     return null;
   }
 
-  /// Double tap on a node → select it, open panel, animate camera.
-  /// also set focus to it.
   void _handleDoubleTap(Offset screenPos) {
     final localPos = _getLocalOffset(screenPos);
     final hitNodeId = _hitTest(localPos);
@@ -331,166 +329,169 @@ class _GraphScreenState extends State<GraphScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF1E1E1E),
-      body: Stack(
-        children: [
-          // === Canvas ===
-          Listener(
-            onPointerDown: (PointerDownEvent details) {
-              final localTap = _getLocalOffset(details.localPosition);
-              final hitNodeId = _hitTest(localTap);
-              if (hitNodeId != null) {
-                _draggingNodeId.value = hitNodeId;
-                _dragMoveCount = 0;
-                _physicsEngine.startDrag(hitNodeId);
-                if (DebugConstants.enableNodeTapLogging) {
-                  _logger.logNodeDragStart(hitNodeId);
-                }
-              }
-            },
-            onPointerMove: (PointerMoveEvent details) {
-              if (_draggingNodeId.value != null) {
-                _dragMoveCount++;
-                if (_dragMoveCount % 2 != 0) return;
-
-                // Cancel long press if user moves finger
-                _cancelLongPress();
-
+      body: LoadingOverlay(
+        isLoadingNotifier: _graphDataService.isLoading,
+        child: Stack(
+          children: [
+            // === Canvas ===
+            Listener(
+              onPointerDown: (PointerDownEvent details) {
                 final localTap = _getLocalOffset(details.localPosition);
-
-                final node = nodes[_draggingNodeId.value];
-                if (node != null) {
-                  node.position = localTap;
-                  _physicsEngine.updateNodePosition(
-                    _draggingNodeId.value!,
-                    localTap,
-                  );
+                final hitNodeId = _hitTest(localTap);
+                if (hitNodeId != null) {
+                  _draggingNodeId.value = hitNodeId;
+                  _dragMoveCount = 0;
+                  _physicsEngine.startDrag(hitNodeId);
+                  if (DebugConstants.enableNodeTapLogging) {
+                    _logger.logNodeDragStart(hitNodeId);
+                  }
                 }
-              }
-            },
-            onPointerUp: (PointerUpEvent details) {
-              _cancelDrag();
-            },
-            child: GestureDetector(
-              // Double tap → select node + open panel + camera
-              onDoubleTapDown: (details) {
-                _handleDoubleTap(details.localPosition);
               },
-              // Long press → expand/collapse slave nodes (2 sec)
-              onLongPressStart: (details) {
-                _startLongPress(details.localPosition);
-              },
-              onLongPressEnd: (_) {
-                // Timer handles the 2s logic; cancel if released early
-                // (Timer continues; if user held long enough, expansion happened)
-              },
-              onLongPressMoveUpdate: (details) {
-                // Cancel if user moves during long press
-                _cancelLongPress();
-              },
-              child: ValueListenableBuilder<String?>(
-                valueListenable: _draggingNodeId,
-                builder: (context, draggingId, interactiveChild) {
-                  return InteractiveViewer(
-                    transformationController: _transformationController,
-                    boundaryMargin: const EdgeInsets.all(double.infinity),
-                    minScale: 0.1,
-                    maxScale: 5.0,
-                    panEnabled: draggingId == null,
-                    scaleEnabled: true,
-                    onInteractionStart: (details) {
-                      if (details.pointerCount >= 2) {
-                        _cancelDrag();
-                        _cancelLongPress();
-                      }
-                    },
-                    child: interactiveChild!,
-                  );
-                },
-                child: SizedBox(
-                  width: 5000,
-                  height: 5000,
-                  child: ValueListenableBuilder<Matrix4>(
-                    valueListenable: _transformationController,
-                    builder: (context, matrix, child) {
-                      final translation = matrix.getTranslation();
-                      final scale = matrix.getMaxScaleOnAxis();
-                      final viewport = Rect.fromLTWH(
-                        -translation.x / scale,
-                        -translation.y / scale,
-                        _screenSize.width / scale,
-                        _screenSize.height / scale,
-                      ).inflate(100);
+              onPointerMove: (PointerMoveEvent details) {
+                if (_draggingNodeId.value != null) {
+                  _dragMoveCount++;
+                  if (_dragMoveCount % 2 != 0) return;
 
-                      return ValueListenableBuilder<String?>(
-                        valueListenable: _selectedNodeService.selectedNodeId,
-                        builder: (context, selectedId, _) {
-                          return GraphRenderer(
-                            nodes: nodes,
-                            links: links,
-                            tickNotifier: _graphTickNotifier,
-                            selectedNodeId: selectedId,
-                            viewport: viewport,
-                          );
-                        },
-                      );
-                    },
+                  // Cancel long press if user moves finger
+                  _cancelLongPress();
+
+                  final localTap = _getLocalOffset(details.localPosition);
+
+                  final node = nodes[_draggingNodeId.value];
+                  if (node != null) {
+                    node.position = localTap;
+                    _physicsEngine.updateNodePosition(
+                      _draggingNodeId.value!,
+                      localTap,
+                    );
+                  }
+                }
+              },
+              onPointerUp: (PointerUpEvent details) {
+                _cancelDrag();
+              },
+              child: GestureDetector(
+                // Double tap → select node + open panel + camera
+                onDoubleTapDown: (details) {
+                  _handleDoubleTap(details.localPosition);
+                },
+                // Long press → expand/collapse slave nodes (2 sec)
+                onLongPressStart: (details) {
+                  _startLongPress(details.localPosition);
+                },
+                onLongPressEnd: (_) {
+                  // Timer handles the 2s logic; cancel if released early
+                  // (Timer continues; if user held long enough, expansion happened)
+                },
+                onLongPressMoveUpdate: (details) {
+                  // Cancel if user moves during long press
+                  _cancelLongPress();
+                },
+                child: ValueListenableBuilder<String?>(
+                  valueListenable: _draggingNodeId,
+                  builder: (context, draggingId, interactiveChild) {
+                    return InteractiveViewer(
+                      transformationController: _transformationController,
+                      boundaryMargin: const EdgeInsets.all(double.infinity),
+                      minScale: 0.1,
+                      maxScale: 5.0,
+                      panEnabled: draggingId == null,
+                      scaleEnabled: true,
+                      onInteractionStart: (details) {
+                        if (details.pointerCount >= 2) {
+                          _cancelDrag();
+                          _cancelLongPress();
+                        }
+                      },
+                      child: interactiveChild!,
+                    );
+                  },
+                  child: SizedBox(
+                    width: 5000,
+                    height: 5000,
+                    child: ValueListenableBuilder<Matrix4>(
+                      valueListenable: _transformationController,
+                      builder: (context, matrix, child) {
+                        final translation = matrix.getTranslation();
+                        final scale = matrix.getMaxScaleOnAxis();
+                        final viewport = Rect.fromLTWH(
+                          -translation.x / scale,
+                          -translation.y / scale,
+                          _screenSize.width / scale,
+                          _screenSize.height / scale,
+                        ).inflate(100);
+
+                        return ValueListenableBuilder<String?>(
+                          valueListenable: _selectedNodeService.selectedNodeId,
+                          builder: (context, selectedId, _) {
+                            return GraphRenderer(
+                              nodes: nodes,
+                              links: links,
+                              tickNotifier: _graphTickNotifier,
+                              selectedNodeId: selectedId,
+                              viewport: viewport,
+                            );
+                          },
+                        );
+                      },
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
 
-          // === Menu button (Left) ===
-          Positioned(
-            top: 50,
-            left: 20,
-            child: IconButton(
-              icon: const Icon(Icons.menu, color: Colors.white, size: 30),
-              onPressed: () => _selectedNodeService.togglePanel(),
-            ),
-          ),
-
-          // === Debug button (Right) ===
-          Positioned(
-            top: 50,
-            right: 20,
-            child: IconButton(
-              icon: const Icon(
-                Icons.bug_report,
-                color: Colors.white54,
-                size: 30,
+            // === Menu button (Left) ===
+            Positioned(
+              top: 50,
+              left: 20,
+              child: IconButton(
+                icon: const Icon(Icons.menu, color: Colors.white, size: 30),
+                onPressed: () => _selectedNodeService.togglePanel(),
               ),
-              onPressed: () {
-                setState(() {
-                  _isDebugPanelOpen = !_isDebugPanelOpen;
-                });
-              },
             ),
-          ),
 
-          // === Side panel (Left) ===
-          SidePanel(
-            screenWidth: _screenSize.width > 0
-                ? _screenSize.width
-                : MediaQuery.of(context).size.width,
-          ),
-
-          // === Debug panel (Right) ===
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeInOut,
-            top: 0,
-            bottom: 0,
-            right: _isDebugPanelOpen ? 0 : -300,
-            child: DebugPanel(
-              onClose: () {
-                setState(() {
-                  _isDebugPanelOpen = false;
-                });
-              },
+            // === Debug button (Right) ===
+            Positioned(
+              top: 50,
+              right: 20,
+              child: IconButton(
+                icon: const Icon(
+                  Icons.bug_report,
+                  color: Colors.white54,
+                  size: 30,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _isDebugPanelOpen = !_isDebugPanelOpen;
+                  });
+                },
+              ),
             ),
-          ),
-        ],
+
+            // === Side panel (Left) ===
+            SidePanel(
+              screenWidth: _screenSize.width > 0
+                  ? _screenSize.width
+                  : MediaQuery.of(context).size.width,
+            ),
+
+            // === Debug panel (Right) ===
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              top: 0,
+              bottom: 0,
+              right: _isDebugPanelOpen ? 0 : -300,
+              child: DebugPanel(
+                onClose: () {
+                  setState(() {
+                    _isDebugPanelOpen = false;
+                  });
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

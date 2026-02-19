@@ -108,4 +108,47 @@ class GraphNode {
       _updateTextPainter();
     }
   }
+
+  Map<String, dynamic> toJson({required Map<String, GraphNode> allNodes}) {
+    final Map<String, dynamic> data = {
+      'id': id,
+      'position': {'dx': position.dx, 'dy': position.dy},
+      'label': label,
+      'name': name,
+      'selfGeneratedMoney': selfGeneratedMoney,
+      'mass': mass,
+      'radius': radius,
+      'parentId': parentId,
+      'attachedNodeIds': attachedNodeIds,
+    };
+
+    if (childrenIds.isNotEmpty) {
+      data['children'] = childrenIds
+          .map((childId) => allNodes[childId]?.toJson(allNodes: allNodes))
+          .whereType<Map<String, dynamic>>()
+          .toList();
+    }
+
+    return data;
+  }
+
+  factory GraphNode.fromJson(Map<String, dynamic> json) {
+    return GraphNode(
+      id: json['id'] as String,
+      position: Offset(
+        (json['position']['dx'] as num).toDouble(),
+        (json['position']['dy'] as num).toDouble(),
+      ),
+      label: json['label'] as String,
+      name: json['name'] as String? ?? '',
+      selfGeneratedMoney: (json['selfGeneratedMoney'] as num).toDouble(),
+      mass: (json['mass'] as num).toDouble(),
+      radius: (json['radius'] as num).toDouble(),
+      parentId: json['parentId'] as String?,
+      attachedNodeIds: (json['attachedNodeIds'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList(),
+      childrenIds: [], // Will be populated during flattening
+    );
+  }
 }
