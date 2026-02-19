@@ -18,6 +18,12 @@ class PhysicsEngine {
   Stream<Map<String, Offset>> get onUpdate => _updateController.stream;
 
   Future<void> init(Map<String, GraphNode> nodes, List<GraphLink> links) async {
+    if (_isolate != null) {
+      // Already initialized, just update graph
+      setGraph(nodes, links);
+      return;
+    }
+
     final receivePort = ReceivePort();
     _isolate = await Isolate.spawn(physicsIsolateEntry, receivePort.sendPort);
 
@@ -48,6 +54,13 @@ class PhysicsEngine {
     });
 
     _sendPort = await completer.future;
+
+    // Send initial data
+    setGraph(nodes, links);
+  }
+
+  void setGraph(Map<String, GraphNode> nodes, List<GraphLink> links) {
+    if (_sendPort == null) return;
 
     final config = PhysicsConfig(
       alphaStart: AppConstants.alphaStart,

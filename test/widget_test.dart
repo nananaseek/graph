@@ -13,6 +13,9 @@ import 'package:graph/logic/physics_engine.dart';
 import 'package:graph/services/logging_service.dart';
 import 'package:graph/models/graph_node.dart';
 import 'package:graph/models/graph_link.dart';
+import 'package:graph/services/graph_data_service.dart';
+import 'package:graph/services/selected_node_service.dart';
+import 'package:graph/services/camera_service.dart';
 
 // Fake Classes (minimal implementation for smoke test)
 class FakePhysicsEngine implements PhysicsEngine {
@@ -51,6 +54,9 @@ class FakePhysicsEngine implements PhysicsEngine {
 
   @override
   void updateNodePosition(String id, Offset position) {}
+
+  @override
+  void setGraph(Map<String, GraphNode> nodes, List<GraphLink> links) {}
 }
 
 class FakeLoggingService implements LoggingService {
@@ -81,6 +87,9 @@ void main() {
     final getIt = GetIt.instance;
     getIt.registerSingleton<PhysicsEngine>(FakePhysicsEngine());
     getIt.registerSingleton<LoggingService>(FakeLoggingService());
+    getIt.registerSingleton<GraphDataService>(GraphDataService());
+    getIt.registerSingleton<SelectedNodeService>(SelectedNodeService());
+    getIt.registerSingleton<CameraService>(CameraService());
   });
 
   tearDown(() {
@@ -98,6 +107,6 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
 
     // Verify sidebar text is visible
-    expect(find.text('Твої Графи'), findsOneWidget);
+    expect(find.text('Твої ноди'), findsOneWidget);
   });
 }

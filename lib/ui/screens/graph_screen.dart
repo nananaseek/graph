@@ -2,21 +2,24 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:uuid/uuid.dart';
 import '../../models/graph_node.dart';
 import '../../models/graph_link.dart';
 import '../../logic/physics_engine.dart';
 import '../../core/service_locator.dart';
 import '../../services/logging_service.dart';
+import '../../services/graph_data_service.dart';
+import '../../services/selected_node_service.dart';
+import '../../services/camera_service.dart';
 import '../../core/debug_constants.dart';
 import '../../core/constants.dart';
 
 import '../widgets/graph_renderer.dart';
+import '../widgets/side_panel.dart';
 
 /// Tracks when a node's appearance animation starts (relative to the overall start).
 class _NodeAppearSchedule {
   final String nodeId;
-  final double startMs; // Delay before this node starts appearing
+  final double startMs;
 
   _NodeAppearSchedule(this.nodeId, this.startMs);
 }
@@ -30,22 +33,19 @@ class GraphScreen extends StatefulWidget {
 
 class _GraphScreenState extends State<GraphScreen>
     with TickerProviderStateMixin {
-  final Map<String, GraphNode> nodes = {};
-  final List<GraphLink> links = [];
+  late final GraphDataService _graphDataService;
+  late final SelectedNodeService _selectedNodeService;
+  late final CameraService _cameraService;
+  late final PhysicsEngine _physicsEngine;
+  final _logger = getIt<LoggingService>();
 
   final TransformationController _transformationController =
       TransformationController();
 
-  final _uuid = const Uuid();
-  late final PhysicsEngine _physicsEngine;
-
-  final _logger = getIt<LoggingService>();
   StreamSubscription? _physicsSubscription;
   final ValueNotifier<int> _graphTickNotifier = ValueNotifier(0);
 
   final ValueNotifier<String?> _draggingNodeId = ValueNotifier(null);
-  bool _isSidebarOpen = false;
-  String? _selectedNodeForLink;
   int _dragMoveCount = 0;
 
   Size _screenSize = Size.zero;
@@ -54,91 +54,79 @@ class _GraphScreenState extends State<GraphScreen>
   Ticker? _appearanceTicker;
   final List<_NodeAppearSchedule> _appearSchedule = [];
   double _appearElapsedMs = 0.0;
-  bool _appearAnimationActive = false;
 
-  // --- Node disappear animation ---
-  Ticker? _disappearTicker;
-  final Map<String, double> _disappearingNodes = {}; // nodeId → startMs
-  double _disappearElapsedMs = 0.0;
+  // --- Long press state ---
+  String? _longPressNodeId;
+  Timer? _longPressTimer;
+  static const _longPressDuration = Duration(seconds: 2);
+
+  // Convenience accessors
+  Map<String, GraphNode> get nodes => _graphDataService.visibleNodes;
+  List<GraphLink> get links => _graphDataService.visibleLinks;
 
   @override
   void initState() {
     super.initState();
+    _graphDataService = getIt<GraphDataService>();
+    _selectedNodeService = getIt<SelectedNodeService>();
+    _cameraService = getIt<CameraService>();
     _physicsEngine = getIt<PhysicsEngine>();
 
-    // Mark batch animation as active so _addNode doesn't trigger individual timers
-    _appearAnimationActive = true;
+    _cameraService.init(_transformationController, this);
 
-    _addNode(const Offset(0, 0), "Main Hub");
-    _addNode(const Offset(100, 100), "Note A");
-    _addNode(const Offset(-100, 100), "Note B");
-    _addNode(const Offset(150, 0), "Note C");
+    // Initialize mock data
+    _graphDataService.initMockData();
 
-    // Create Mega Hub with 30 connections
-    final hubId = _uuid.v4();
-    final hubNode = GraphNode(
-      id: hubId,
-      position: const Offset(0, -300),
-      label: "Mega Hub",
-    );
-    nodes[hubId] = hubNode;
-    _physicsEngine.addNode(hubNode);
-
-    for (int i = 1; i <= 30; i++) {
-      final leafId = _uuid.v4();
-      final leafNode = GraphNode(
-        id: leafId,
-        position: Offset((i * 10.0) - 150, -400),
-        label: "L $i",
-      );
-      nodes[leafId] = leafNode;
-      _physicsEngine.addNode(leafNode);
-      links.add(GraphLink(hubId, leafId));
-    }
-    _physicsEngine.updateLinks(links);
+    // Listen to expand/collapse changes in the data service
+    _graphDataService.visibleTickNotifier.addListener(_onDataServiceChanged);
 
     Future.delayed(Duration.zero, () {
       if (nodes.isEmpty) return;
-      final nodeList = nodes.values.toList();
-      if (nodeList.length >= 4) {
-        setState(() {
-          links.add(GraphLink(nodeList[0].id, nodeList[1].id));
-          links.add(GraphLink(nodeList[0].id, nodeList[2].id));
-          links.add(GraphLink(nodeList[0].id, nodeList[3].id));
-          links.add(GraphLink(nodeList[1].id, nodeList[3].id));
-        });
 
-        _physicsEngine.init(nodes, links);
+      _physicsEngine.init(nodes, links);
 
-        _physicsSubscription = _physicsEngine.onUpdate.listen((positions) {
-          // Update node positions
-          for (var entry in positions.entries) {
-            final node = nodes[entry.key];
-            if (node != null) {
-              node.position = entry.value;
-            }
+      _physicsSubscription = _physicsEngine.onUpdate.listen((positions) {
+        for (var entry in positions.entries) {
+          final node = nodes[entry.key];
+          if (node != null) {
+            node.position = entry.value;
           }
-          _graphTickNotifier.value++;
-        });
+        }
+        _graphTickNotifier.value++;
+      });
 
-        _recalculateNodeSizes();
-
-        // Start staggered appearance animation
-        _startNodeAppearanceAnimation();
-      }
+      _recalculateNodeSizes();
+      _startNodeAppearanceAnimation();
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _screenSize = MediaQuery.of(context).size;
+      SidePanel.updateScreenSize(_screenSize);
       final x = _screenSize.width / 2;
       final y = _screenSize.height / 2;
       _transformationController.value = Matrix4.translationValues(x, y, 0);
     });
   }
 
+  /// Called when GraphDataService's visible nodes change (expand/collapse).
+  void _onDataServiceChanged() {
+    // Sync physics engine with new visible nodes & links - reuse isolate
+    _physicsEngine.setGraph(nodes, links);
+    _recalculateNodeSizes();
+
+    // Animate new nodes appearing
+    final newNodes = nodes.values
+        .where((n) => n.appearanceScale < 1.0)
+        .toList();
+    if (newNodes.isNotEmpty) {
+      _startNodeAppearanceAnimationForNodes(newNodes);
+    }
+
+    _graphTickNotifier.value++;
+  }
+
   /// Build the appearance schedule and start the ticker.
   void _startNodeAppearanceAnimation() {
-    // Shuffle node IDs for random order
     final nodeIds = nodes.keys.toList()..shuffle(Random());
 
     _appearSchedule.clear();
@@ -149,7 +137,25 @@ class _GraphScreenState extends State<GraphScreen>
     }
 
     _appearElapsedMs = 0.0;
-    _appearAnimationActive = true;
+
+    _appearanceTicker?.dispose();
+    _appearanceTicker = createTicker(_onAppearanceTick);
+    _appearanceTicker!.start();
+  }
+
+  /// Animate only specific new nodes (e.g. after expand).
+  void _startNodeAppearanceAnimationForNodes(List<GraphNode> newNodes) {
+    _appearSchedule.clear();
+    for (int i = 0; i < newNodes.length; i++) {
+      _appearSchedule.add(
+        _NodeAppearSchedule(
+          newNodes[i].id,
+          i * AppConstants.nodeAppearStaggerMs,
+        ),
+      );
+    }
+
+    _appearElapsedMs = 0.0;
 
     _appearanceTicker?.dispose();
     _appearanceTicker = createTicker(_onAppearanceTick);
@@ -177,7 +183,6 @@ class _GraphScreenState extends State<GraphScreen>
         continue;
       }
 
-      // Linear progress 0→1
       double t = localElapsed / duration;
       if (t >= 1.0) {
         node.appearanceScale = 1.0;
@@ -188,11 +193,10 @@ class _GraphScreenState extends State<GraphScreen>
       }
     }
 
+    _graphTickNotifier.value++;
+
     if (allDone) {
-      // Final repaint to ensure all nodes show text (scale == 1.0)
-      _graphTickNotifier.value++;
       _appearanceTicker?.stop();
-      _appearAnimationActive = false;
     }
   }
 
@@ -200,134 +204,39 @@ class _GraphScreenState extends State<GraphScreen>
   void didChangeDependencies() {
     super.didChangeDependencies();
     _screenSize = MediaQuery.of(context).size;
+    SidePanel.updateScreenSize(_screenSize);
   }
 
   @override
   void dispose() {
     _appearanceTicker?.dispose();
-    _disappearTicker?.dispose();
+    _longPressTimer?.cancel();
     _physicsSubscription?.cancel();
     _physicsEngine.dispose();
     _graphTickNotifier.dispose();
     _draggingNodeId.dispose();
+    _graphDataService.visibleTickNotifier.removeListener(_onDataServiceChanged);
+    _cameraService.dispose();
     super.dispose();
   }
 
-  void _addNode(Offset position, [String? text]) {
-    final id = _uuid.v4();
-    final node = GraphNode(
-      id: id,
-      position: position,
-      label: text ?? "Note ${nodes.length + 1}",
-    );
-    nodes[id] = node;
-    _physicsEngine.addNode(node);
-    if (DebugConstants.enableRendererLogging) {
-      _logger.logNodeCreation(id);
-    }
-
-    if (!_appearAnimationActive) {
-      _animateSingleNodeAppearance(node);
-    }
-
-    // Trigger repaint without rebuilding widget tree
-    _graphTickNotifier.value++;
-  }
-
-  void _animateSingleNodeAppearance(GraphNode node) {
-    _appearSchedule.clear();
-    _appearSchedule.add(_NodeAppearSchedule(node.id, 0.0));
-    _appearElapsedMs = 0.0;
-    _appearAnimationActive = true;
-
-    _appearanceTicker?.dispose();
-    _appearanceTicker = createTicker(_onAppearanceTick);
-    _appearanceTicker!.start();
-  }
-
-  void _deleteNode(String id) {
-    final node = nodes[id];
-    if (node == null || _disappearingNodes.containsKey(id)) return;
-
-    if (_draggingNodeId.value == id) _draggingNodeId.value = null;
-    if (_selectedNodeForLink == id) _selectedNodeForLink = null;
-
-    links.removeWhere((l) => l.sourceId == id || l.targetId == id);
-    _physicsEngine.removeNode(id);
-    _physicsEngine.updateLinks(links);
-    _recalculateNodeSizes();
-
-    if (DebugConstants.enableRendererLogging) {
-      _logger.logNodeDeletion(id);
-    }
-
-    // Start disappear animation
-    _disappearingNodes[id] = 0.0;
-    _startDisappearAnimation();
-  }
-
-  void _startDisappearAnimation() {
-    if (_disappearTicker?.isActive == true) return;
-    _disappearElapsedMs = 0.0;
-    _disappearTicker?.dispose();
-    _disappearTicker = createTicker(_onDisappearTick);
-    _disappearTicker!.start();
-  }
-
-  void _onDisappearTick(Duration elapsed) {
-    _disappearElapsedMs = elapsed.inMicroseconds / 1000.0;
-    final duration =
-        AppConstants.nodeAppearDurationMs * 0.6; // faster disappear
-
-    final toRemove = <String>[];
-    for (final entry in _disappearingNodes.entries) {
-      final node = nodes[entry.key];
-      if (node == null) {
-        toRemove.add(entry.key);
-        continue;
-      }
-
-      final t = (_disappearElapsedMs / duration).clamp(0.0, 1.0);
-      // easeInCubic — accelerating shrink
-      node.appearanceScale = 1.0 - (t * t * t);
-
-      if (t >= 1.0) {
-        toRemove.add(entry.key);
-      }
-    }
-
-    for (final id in toRemove) {
-      _disappearingNodes.remove(id);
-      nodes.remove(id);
-    }
-
-    _graphTickNotifier.value++;
-
-    if (_disappearingNodes.isEmpty) {
-      _disappearTicker?.stop();
-    }
-  }
-
   void _recalculateNodeSizes() {
-    // 1. Reset degrees
     final degrees = <String, int>{};
     for (final node in nodes.values) {
       degrees[node.id] = 0;
     }
 
-    // 2. Count links
     for (final link in links) {
       degrees[link.sourceId] = (degrees[link.sourceId] ?? 0) + 1;
       degrees[link.targetId] = (degrees[link.targetId] ?? 0) + 1;
     }
 
-    // 3. Update nodes
     for (final node in nodes.values) {
       final degree = degrees[node.id] ?? 0;
       node.updateSize(degree);
     }
 
-    // 4. Notify physics engine about mass/radius changes
+    // Also update nodes in the isolate
     _physicsEngine.updateNodes(nodes.values.toList());
   }
 
@@ -357,12 +266,64 @@ class _GraphScreenState extends State<GraphScreen>
     return null;
   }
 
+  /// Double tap on a node → select it, open panel, animate camera.
+  void _handleDoubleTap(Offset screenPos) {
+    final localPos = _getLocalOffset(screenPos);
+    final hitNodeId = _hitTest(localPos);
+
+    if (hitNodeId != null) {
+      final node = nodes[hitNodeId]!;
+
+      // Select node + open panel
+      _selectedNodeService.selectNode(hitNodeId);
+      _selectedNodeService.openPanel();
+
+      // Animate camera
+      _cameraService.animateTo(node.position, node.radius, _screenSize);
+
+      if (DebugConstants.enableNodeSelectionLogging) {
+        _logger.logNodeSelection(hitNodeId);
+      }
+    }
+  }
+
+  /// Long press (2s) on a node → expand/collapse slave nodes.
+  void _startLongPress(Offset screenPos) {
+    final localPos = _getLocalOffset(screenPos);
+    final hitNodeId = _hitTest(localPos);
+
+    if (hitNodeId != null) {
+      _longPressNodeId = hitNodeId;
+      _longPressTimer?.cancel();
+      _longPressTimer = Timer(_longPressDuration, () {
+        if (_longPressNodeId == hitNodeId) {
+          _toggleNodeExpansion(hitNodeId);
+        }
+        _longPressNodeId = null;
+      });
+    }
+  }
+
+  void _cancelLongPress() {
+    _longPressTimer?.cancel();
+    _longPressNodeId = null;
+  }
+
+  void _toggleNodeExpansion(String nodeId) {
+    if (_graphDataService.isExpanded(nodeId)) {
+      _graphDataService.collapseChildren(nodeId);
+    } else {
+      _graphDataService.expandChildren(nodeId);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF1E1E1E),
       body: Stack(
         children: [
+          // === Canvas ===
           Listener(
             onPointerDown: (PointerDownEvent details) {
               final localTap = _getLocalOffset(details.localPosition);
@@ -378,9 +339,11 @@ class _GraphScreenState extends State<GraphScreen>
             },
             onPointerMove: (PointerMoveEvent details) {
               if (_draggingNodeId.value != null) {
-                // Throttle: skip every other pointer event to halve raster load
                 _dragMoveCount++;
                 if (_dragMoveCount % 2 != 0) return;
+
+                // Cancel long press if user moves finger
+                _cancelLongPress();
 
                 final localTap = _getLocalOffset(details.localPosition);
 
@@ -398,96 +361,21 @@ class _GraphScreenState extends State<GraphScreen>
               _cancelDrag();
             },
             child: GestureDetector(
+              // Double tap → select node + open panel + camera
               onDoubleTapDown: (details) {
-                final offset = _getLocalOffset(details.localPosition);
-                final hitNodeId = _hitTest(offset);
-
-                if (hitNodeId != null) {
-                  if (_selectedNodeForLink != null &&
-                      _selectedNodeForLink != hitNodeId) {
-                    setState(() {
-                      final existingLinkIndex = links.indexWhere(
-                        (l) =>
-                            (l.sourceId == _selectedNodeForLink &&
-                                l.targetId == hitNodeId) ||
-                            (l.sourceId == hitNodeId &&
-                                l.targetId == _selectedNodeForLink),
-                      );
-
-                      if (existingLinkIndex != -1) {
-                        links.removeAt(existingLinkIndex);
-                      } else {
-                        links.add(GraphLink(_selectedNodeForLink!, hitNodeId));
-                      }
-
-                      _physicsEngine.updateLinks(links);
-                      if (DebugConstants.enableRendererLogging) {
-                        _logger.logLinkCreation(
-                          _selectedNodeForLink!,
-                          hitNodeId,
-                        );
-                      }
-
-                      _selectedNodeForLink = null;
-                      _recalculateNodeSizes();
-                    });
-                  } else {
-                    if (_selectedNodeForLink == hitNodeId) {
-                      if (DebugConstants.enableNodeSelectionLogging) {
-                        _logger.logNodeDeselection(_selectedNodeForLink!);
-                      }
-                      setState(() => _selectedNodeForLink = null);
-                    } else {
-                      // Select node for linking (or re-select)
-                      setState(() => _selectedNodeForLink = hitNodeId);
-                      if (DebugConstants.enableNodeSelectionLogging) {
-                        _logger.logNodeSelection(hitNodeId);
-                      }
-                    }
-                  }
-                } else {
-                  _addNode(offset);
-                }
+                _handleDoubleTap(details.localPosition);
               },
-              onTapUp: (details) {
-                if (_selectedNodeForLink != null) {
-                  final localTap = _getLocalOffset(details.localPosition);
-                  final hitNodeId = _hitTest(localTap);
-
-                  if (hitNodeId != null && hitNodeId != _selectedNodeForLink) {
-                    setState(() {
-                      final existingLinkIndex = links.indexWhere(
-                        (l) =>
-                            (l.sourceId == _selectedNodeForLink &&
-                                l.targetId == hitNodeId) ||
-                            (l.sourceId == hitNodeId &&
-                                l.targetId == _selectedNodeForLink),
-                      );
-
-                      if (existingLinkIndex != -1) {
-                        links.removeAt(existingLinkIndex);
-                      } else {
-                        links.add(GraphLink(_selectedNodeForLink!, hitNodeId));
-                        if (DebugConstants.enableRendererLogging) {
-                          _logger.logLinkCreation(
-                            _selectedNodeForLink!,
-                            hitNodeId,
-                          );
-                        }
-                      }
-
-                      _physicsEngine.updateLinks(links);
-
-                      _selectedNodeForLink = null;
-                      _recalculateNodeSizes();
-                    });
-                  } else if (hitNodeId == null) {
-                    if (DebugConstants.enableNodeSelectionLogging) {
-                      _logger.logNodeDeselection(_selectedNodeForLink!);
-                    }
-                    setState(() => _selectedNodeForLink = null);
-                  }
-                }
+              // Long press → expand/collapse slave nodes (2 sec)
+              onLongPressStart: (details) {
+                _startLongPress(details.localPosition);
+              },
+              onLongPressEnd: (_) {
+                // Timer handles the 2s logic; cancel if released early
+                // (Timer continues; if user held long enough, expansion happened)
+              },
+              onLongPressMoveUpdate: (details) {
+                // Cancel if user moves during long press
+                _cancelLongPress();
               },
               child: ValueListenableBuilder<String?>(
                 valueListenable: _draggingNodeId,
@@ -500,9 +388,9 @@ class _GraphScreenState extends State<GraphScreen>
                     panEnabled: draggingId == null,
                     scaleEnabled: true,
                     onInteractionStart: (details) {
-                      // If user starts pinching (2+ fingers), cancel any node drag
                       if (details.pointerCount >= 2) {
                         _cancelDrag();
+                        _cancelLongPress();
                       }
                     },
                     child: interactiveChild!,
@@ -514,7 +402,6 @@ class _GraphScreenState extends State<GraphScreen>
                   child: ValueListenableBuilder<Matrix4>(
                     valueListenable: _transformationController,
                     builder: (context, matrix, child) {
-                      // Calculate viewport here
                       final translation = matrix.getTranslation();
                       final scale = matrix.getMaxScaleOnAxis();
                       final viewport = Rect.fromLTWH(
@@ -524,12 +411,17 @@ class _GraphScreenState extends State<GraphScreen>
                         _screenSize.height / scale,
                       ).inflate(100);
 
-                      return GraphRenderer(
-                        nodes: nodes,
-                        links: links,
-                        tickNotifier: _graphTickNotifier,
-                        selectedNodeId: _selectedNodeForLink,
-                        viewport: viewport,
+                      return ValueListenableBuilder<String?>(
+                        valueListenable: _selectedNodeService.selectedNodeId,
+                        builder: (context, selectedId, _) {
+                          return GraphRenderer(
+                            nodes: nodes,
+                            links: links,
+                            tickNotifier: _graphTickNotifier,
+                            selectedNodeId: selectedId,
+                            viewport: viewport,
+                          );
+                        },
                       );
                     },
                   ),
@@ -538,83 +430,21 @@ class _GraphScreenState extends State<GraphScreen>
             ),
           ),
 
+          // === Menu button ===
           Positioned(
             top: 50,
             left: 20,
             child: IconButton(
               icon: const Icon(Icons.menu, color: Colors.white, size: 30),
-              onPressed: () => setState(() => _isSidebarOpen = !_isSidebarOpen),
+              onPressed: () => _selectedNodeService.togglePanel(),
             ),
           ),
 
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeInOut,
-            top: 0,
-            bottom: 0,
-            left: _isSidebarOpen ? 0 : -300,
-            width: 300,
-            child: Material(
-              color: const Color.fromRGBO(37, 37, 37, 0.95),
-              elevation: 10,
-              child: SafeArea(
-                child: Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            "Твої Графи",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.close,
-                              color: Colors.white54,
-                            ),
-                            onPressed: () =>
-                                setState(() => _isSidebarOpen = false),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Divider(color: Colors.white24),
-                    Expanded(
-                      child: ListView.builder(
-                        itemCount: nodes.length,
-                        itemBuilder: (context, index) {
-                          final node = nodes.values.elementAt(index);
-                          return ListTile(
-                            leading: const Icon(
-                              Icons.circle,
-                              color: Color(0xFF9C27B0),
-                              size: 16,
-                            ),
-                            title: Text(
-                              node.label,
-                              style: const TextStyle(color: Colors.white),
-                            ),
-                            trailing: IconButton(
-                              icon: const Icon(
-                                Icons.delete_outline,
-                                color: Colors.redAccent,
-                              ),
-                              onPressed: () => _deleteNode(node.id),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          // === Side panel (isolated from canvas) ===
+          SidePanel(
+            screenWidth: _screenSize.width > 0
+                ? _screenSize.width
+                : MediaQuery.of(context).size.width,
           ),
         ],
       ),
