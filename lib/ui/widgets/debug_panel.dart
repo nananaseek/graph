@@ -21,7 +21,7 @@ class DebugPanel extends StatelessWidget {
         children: [
           // Header
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.fromLTRB(15.0, 25.0, 15.0, 0.0),
             child: Row(
               children: [
                 const Icon(Icons.bug_report, color: Colors.amber),

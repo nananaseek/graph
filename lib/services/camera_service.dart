@@ -28,7 +28,7 @@ class CameraService {
     // Target scale: nodeRadius * 2 should be 45% of min(screenWidth, screenHeight)
     final targetDiameter = nodeRadius * 2;
     final targetViewSize = screenSize.shortestSide;
-    final targetScale = (targetViewSize * 0.45) / targetDiameter;
+    final targetScale = (targetViewSize * 0.05) / targetDiameter;
 
     // Clamp scale to InteractiveViewer bounds
     final scale = targetScale.clamp(0.3, 5.0);
