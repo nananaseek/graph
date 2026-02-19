@@ -139,6 +139,18 @@ class FakeGraphDataService implements GraphDataService {
 
   @override
   void updateVisibility() {}
+
+  @override
+  void createRootNode() {}
+
+  @override
+  void createSlaveNode(String parentId) {}
+
+  @override
+  void deleteNode(String nodeId) {}
+
+  @override
+  void updateNode(String nodeId, {String? name, double? money}) {}
 }
 
 void main() {

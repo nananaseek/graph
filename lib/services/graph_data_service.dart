@@ -6,6 +6,8 @@ import 'package:uuid/uuid.dart';
 
 import '../models/graph_node.dart';
 import '../models/graph_link.dart';
+import '../core/service_locator.dart';
+import 'debug_service.dart';
 
 /// Service managing the full node graph, hierarchy, and visible subset.
 ///
@@ -73,6 +75,20 @@ class GraphDataService {
   /// 3. Children of focused node are visible.
   void updateVisibility() {
     final newVisibleNodes = <String, GraphNode>{};
+
+    // Check debug mode first
+    // We access it via getIt to avoid circular dependency in constructor if any
+    if (getIt.isRegistered<DebugService>()) {
+      final debugService = getIt<DebugService>();
+      if (debugService.showAllNodes.value) {
+        newVisibleNodes.addAll(allNodes);
+        visibleNodes.clear();
+        visibleNodes.addAll(newVisibleNodes);
+        _rebuildVisibleLinks();
+        visibleTickNotifier.value++;
+        return;
+      }
+    }
 
     // 1. Root nodes always visible
     for (final node in allNodes.values) {
@@ -169,6 +185,122 @@ class GraphDataService {
     }
   }
 
+  // --- CRUD Operations ---
+
+  /// Creates a new Root Node.
+  void createRootNode() {
+    final id = _uuid.v4();
+    // Position randomly near center or offset
+    final node = GraphNode(
+      id: id,
+      position: const Offset(
+        100,
+        100,
+      ), // Default position, forces user to drag?
+      label: 'New Root',
+      name: 'New Root',
+      selfGeneratedMoney: 0,
+    );
+    allNodes[id] = node;
+
+    // Automatically focus on it? Or just show it.
+    // Roots are always visible.
+    updateVisibility();
+  }
+
+  /// Creates a new Slave Node attached to [parentId].
+  void createSlaveNode(String parentId) {
+    final parent = allNodes[parentId];
+    if (parent == null) return;
+
+    final id = _uuid.v4();
+    final node = GraphNode(
+      id: id,
+      position: parent.position, // Start at parent position (will expand out)
+      label: 'New Slave',
+      name: 'New Slave',
+      selfGeneratedMoney: 0,
+      parentId: parentId,
+    );
+
+    allNodes[id] = node;
+    parent.childrenIds.add(id);
+    allLinks.add(GraphLink(parentId, id));
+
+    // Update connection count for parent (basic increment)
+    parent.connectionCount++;
+    parent.attachedNodeIds.add(id);
+
+    node.connectionCount = 1;
+    node.attachedNodeIds.add(parentId);
+
+    // If we create a slave, we probably want to see it.
+    // Ensure parent is focused or visible.
+    updateVisibility();
+  }
+
+  /// Deletes a node and all its descendants.
+  void deleteNode(String nodeId) {
+    // 1. Collect all descendants (recursive) to delete
+    final nodesToDelete = <String>{nodeId};
+    _collectDescendants(nodeId, nodesToDelete);
+
+    // 2. Remove from data structures
+    for (final id in nodesToDelete) {
+      allNodes.remove(id);
+      visibleNodes.remove(id);
+
+      // Remove links connected to this node
+      allLinks.removeWhere((l) => l.sourceId == id || l.targetId == id);
+    }
+
+    // 3. Cleanup references in parents/neighbors
+    for (final node in allNodes.values) {
+      node.childrenIds.removeWhere(
+        (childId) => nodesToDelete.contains(childId),
+      );
+      node.attachedNodeIds.removeWhere(
+        (attId) => nodesToDelete.contains(attId),
+      );
+      // Re-caclulate connection count?
+      node.connectionCount = allLinks
+          .where((l) => l.sourceId == node.id || l.targetId == node.id)
+          .length;
+    }
+
+    // 4. Update focus if focused node was deleted
+    if (focusedNodeId.value != null &&
+        nodesToDelete.contains(focusedNodeId.value)) {
+      focusedNodeId.value = null;
+    }
+
+    updateVisibility();
+  }
+
+  void _collectDescendants(String nodeId, Set<String> result) {
+    final children = getChildren(nodeId);
+    for (final child in children) {
+      result.add(child.id);
+      _collectDescendants(child.id, result);
+    }
+  }
+
+  /// Updates the money of a node (and potentially triggers UI update).
+  void updateNode(String nodeId, {String? name, double? money}) {
+    final node = allNodes[nodeId];
+    if (node == null) return;
+
+    if (name != null) node.name = name;
+    if (money != null) node.selfGeneratedMoney = money;
+
+    // Trigger update? Notifiers?
+    // SidePanel might need to know if it's showing this node.
+    // For now, SidePanel rebuilds when selection changes, but not when data changes?
+    // We might need a "nodeUpdated" notifier or similar if we want instant UI feedback while editing?
+    // Or just call updateVisibility (which triggers visibleTick)?
+    visibleTickNotifier.value++;
+  }
+
   /// Initialize with mock hierarchical data.
   void initMockData() {
     allNodes.clear();
@@ -201,7 +333,7 @@ class GraphDataService {
         position: Offset(cos(angle) * dist, sin(angle) * dist),
         label: masterData[i].$1,
         name: masterData[i].$1,
-        generatedMoney: masterData[i].$2,
+        selfGeneratedMoney: masterData[i].$2,
       );
 
       allNodes[id] = node;
@@ -225,7 +357,7 @@ class GraphDataService {
           position: Offset.zero, // Will be positioned on expand
           label: '${allNodes[masterId]!.label} L$j',
           name: '${allNodes[masterId]!.name} — Slave $j',
-          generatedMoney: (rng.nextDouble() * 5000).roundToDouble(),
+          selfGeneratedMoney: (rng.nextDouble() * 5000).roundToDouble(),
           parentId: masterId,
         );
         allNodes[childId] = childNode;
@@ -242,7 +374,7 @@ class GraphDataService {
               position: Offset.zero,
               label: '${childNode.label}.$k',
               name: '${childNode.name} — Sub $k',
-              generatedMoney: (rng.nextDouble() * 1000).roundToDouble(),
+              selfGeneratedMoney: (rng.nextDouble() * 1000).roundToDouble(),
               parentId: childId,
             );
             allNodes[subId] = subNode;

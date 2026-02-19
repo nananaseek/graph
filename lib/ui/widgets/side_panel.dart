@@ -3,6 +3,7 @@ import '../../core/service_locator.dart';
 import '../../services/graph_data_service.dart';
 import '../../services/selected_node_service.dart';
 import '../../services/camera_service.dart';
+import '../../services/debug_service.dart';
 import '../../models/graph_node.dart';
 
 /// Side panel widget with drill-down navigation.
@@ -60,34 +61,65 @@ class _PanelContent extends StatelessWidget {
   const _PanelContent({required this.stack});
 
   @override
+  @override
   Widget build(BuildContext context) {
     final graphDataService = getIt<GraphDataService>();
     final selectedNodeService = getIt<SelectedNodeService>();
+    final debugService = getIt<DebugService>();
 
-    // Root level — show master nodes list
-    if (stack.isEmpty) {
-      return _buildRootView(graphDataService, selectedNodeService);
-    }
+    return ValueListenableBuilder<bool>(
+      valueListenable: debugService.isEditMode,
+      builder: (context, isEditMode, _) {
+        // Root level — show master nodes list
+        if (stack.isEmpty) {
+          return _buildRootView(
+            graphDataService,
+            selectedNodeService,
+            isEditMode,
+          );
+        }
 
-    // Drill-down — show selected node details
-    final currentNodeId = stack.last;
-    final currentNode = graphDataService.getNode(currentNodeId);
-    if (currentNode == null) {
-      return _buildRootView(graphDataService, selectedNodeService);
-    }
+        // Drill-down — show selected node details
+        final currentNodeId = stack.last;
+        final currentNode = graphDataService.getNode(currentNodeId);
+        if (currentNode == null) {
+          return _buildRootView(
+            graphDataService,
+            selectedNodeService,
+            isEditMode,
+          );
+        }
 
-    return _buildNodeDetailView(
-      currentNode,
-      graphDataService,
-      selectedNodeService,
+        return _buildNodeDetailView(
+          context,
+          currentNode,
+          graphDataService,
+          selectedNodeService,
+          isEditMode,
+        );
+      },
     );
   }
 
-  Widget _buildRootView(GraphDataService gds, SelectedNodeService sns) {
+  Widget _buildRootView(
+    GraphDataService gds,
+    SelectedNodeService sns,
+    bool isEditMode,
+  ) {
     final masters = gds.masterNodes;
     return Column(
       children: [
-        _buildHeader(title: 'Твої ноди', onClose: () => sns.closePanel()),
+        _buildHeader(
+          title: 'Твої ноди',
+          onClose: () => sns.closePanel(),
+          trailing: isEditMode
+              ? IconButton(
+                  icon: const Icon(Icons.add, color: Colors.amber),
+                  tooltip: 'Create Root Node',
+                  onPressed: () => gds.createRootNode(),
+                )
+              : null,
+        ),
         const Divider(color: Colors.white24),
         Expanded(
           child: ListView.builder(
@@ -106,9 +138,11 @@ class _PanelContent extends StatelessWidget {
   }
 
   Widget _buildNodeDetailView(
+    BuildContext context,
     GraphNode node,
     GraphDataService gds,
     SelectedNodeService sns,
+    bool isEditMode,
   ) {
     final children = gds.getChildren(node.id);
 
@@ -125,10 +159,41 @@ class _PanelContent extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             children: [
               const SizedBox(height: 12),
-              // Node info card
-              _InfoCard(node: node),
+              // Node info card OR Editor
+              if (isEditMode)
+                _NodeEditor(node: node, onUpdate: gds.updateNode)
+              else
+                _InfoCard(node: node),
+
               const SizedBox(height: 20),
+
+              if (isEditMode) ...[
+                _buildActionButton(
+                  icon: Icons.add_circle_outline,
+                  label: 'Create Slave Node',
+                  color: Colors.amber,
+                  onTap: () => gds.createSlaveNode(node.id),
+                ),
+                const SizedBox(height: 12),
+                _buildActionButton(
+                  icon: Icons.delete_outline,
+                  label: 'Delete Node',
+                  color: Colors.redAccent,
+                  onTap: () {
+                    // Confirm dialog?
+                    // For now direct delete or maybe a simple check
+                    // The task says "delete node".
+                    // Ideally we show a dialog, but I'll implement direct first or basic dialog.
+                    _showDeleteConfirm(context, node, gds, sns);
+                  },
+                ),
+                const SizedBox(height: 20),
+                const Divider(color: Colors.white24),
+                const SizedBox(height: 12),
+              ],
+
               // Slave nodes section
+              // ... existing logic ...
               if (children.isNotEmpty) ...[
                 const Text(
                   'Підпорядковані ноди',
@@ -167,6 +232,7 @@ class _PanelContent extends StatelessWidget {
     required String title,
     required VoidCallback onClose,
     VoidCallback? onBack,
+    Widget? trailing,
   }) {
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -191,6 +257,7 @@ class _PanelContent extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
+          if (trailing != null) trailing,
           IconButton(
             icon: const Icon(Icons.close, color: Colors.white54),
             onPressed: onClose,
@@ -219,6 +286,87 @@ class _PanelContent extends StatelessWidget {
       }
     }
   }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: color, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(color: color, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+
+  void _showDeleteConfirm(
+    BuildContext context,
+    GraphNode node,
+    GraphDataService gds,
+    SelectedNodeService sns,
+  ) {
+    // Only show dialog if node has children
+    final hasChildren = node.childrenIds.isNotEmpty;
+
+    if (!hasChildren) {
+      // Direct delete if no children (optional safety check can be added later)
+      sns.navigateBack();
+      gds.deleteNode(node.id);
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF252525),
+        title: const Text(
+          'Delete Node?',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Text(
+          'This node has ${node.childrenIds.length} children. Deleting it will also delete all descendants.',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.of(ctx).pop(),
+          ),
+          TextButton(
+            child: const Text(
+              'Delete',
+              style: TextStyle(color: Colors.redAccent),
+            ),
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              sns.navigateBack();
+              gds.deleteNode(node.id);
+            },
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _InfoCard extends StatelessWidget {
@@ -241,7 +389,7 @@ class _InfoCard extends StatelessWidget {
           _infoRow(
             Icons.monetization_on,
             'Згенеровані гроші',
-            '${node.generatedMoney.toStringAsFixed(0)} ₴',
+            '${node.selfGeneratedMoney.toStringAsFixed(0)} ₴',
           ),
           const SizedBox(height: 12),
           _infoRow(Icons.link, 'Зв\'язки', '${node.connectionCount}'),
@@ -303,7 +451,7 @@ class _NodeListTile extends StatelessWidget {
       ),
       title: Text(node.name, style: const TextStyle(color: Colors.white)),
       subtitle: Text(
-        '${node.generatedMoney.toStringAsFixed(0)} ₴  •  ${node.childrenIds.length} slave',
+        '${node.selfGeneratedMoney.toStringAsFixed(0)} ₴  •  ${node.childrenIds.length} slave',
         style: const TextStyle(color: Colors.white38, fontSize: 11),
       ),
       trailing: node.childrenIds.isNotEmpty
@@ -311,6 +459,100 @@ class _NodeListTile extends StatelessWidget {
           : null,
       onTap: onTap,
       dense: true,
+    );
+  }
+}
+
+class _NodeEditor extends StatefulWidget {
+  final GraphNode node;
+  final Function(String, {String? name, double? money}) onUpdate;
+
+  const _NodeEditor({required this.node, required this.onUpdate});
+
+  @override
+  State<_NodeEditor> createState() => _NodeEditorState();
+}
+
+class _NodeEditorState extends State<_NodeEditor> {
+  late TextEditingController _nameCtrl;
+  late TextEditingController _moneyCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameCtrl = TextEditingController(text: widget.node.name);
+    _moneyCtrl = TextEditingController(text: widget.node.selfGeneratedMoney.toStringAsFixed(0));
+  }
+  
+  @override
+  void didUpdateWidget(_NodeEditor oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.node.id != widget.node.id) {
+       _nameCtrl.text = widget.node.name;
+       _moneyCtrl.text = widget.node.selfGeneratedMoney.toStringAsFixed(0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _moneyCtrl.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final name = _nameCtrl.text;
+    final money = double.tryParse(_moneyCtrl.text) ?? widget.node.selfGeneratedMoney;
+    widget.onUpdate(widget.node.id, name: name, money: money);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('EDIT NODE', style: TextStyle(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _nameCtrl,
+            style: const TextStyle(color: Colors.white),
+            decoration: const InputDecoration(
+              labelText: 'Name',
+              labelStyle: TextStyle(color: Colors.white54),
+              enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
+              focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.amber)),
+            ),
+            onChanged: (_) => _save(),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _moneyCtrl,
+            style: const TextStyle(color: Colors.white),
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Self Generated Money',
+              labelStyle: TextStyle(color: Colors.white54),
+              enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
+              focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.amber)),
+              suffixText: '₴',
+              suffixStyle: TextStyle(color: Colors.amber),
+            ),
+             onChanged: (_) => _save(),
+          ),
+          const SizedBox(height: 8),
+          const Align(
+             alignment: Alignment.centerRight,
+             child: Text('Changes auto-saved', style: TextStyle(color: Colors.white24, fontSize: 10, fontStyle: FontStyle.italic)),
+          ),
+        ],
+      ),
     );
   }
 }

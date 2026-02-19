@@ -15,6 +15,7 @@ import '../../core/constants.dart';
 
 import '../widgets/graph_renderer.dart';
 import '../widgets/side_panel.dart';
+import '../widgets/debug_panel.dart';
 
 /// Tracks when a node's appearance animation starts (relative to the overall start).
 class _NodeAppearSchedule {
@@ -59,6 +60,8 @@ class _GraphScreenState extends State<GraphScreen>
   String? _longPressNodeId;
   Timer? _longPressTimer;
   static const _longPressDuration = Duration(seconds: 2);
+
+  bool _isDebugPanelOpen = false;
 
   // Convenience accessors
   Map<String, GraphNode> get nodes => _graphDataService.visibleNodes;
@@ -437,7 +440,7 @@ class _GraphScreenState extends State<GraphScreen>
             ),
           ),
 
-          // === Menu button ===
+          // === Menu button (Left) ===
           Positioned(
             top: 50,
             left: 20,
@@ -447,11 +450,45 @@ class _GraphScreenState extends State<GraphScreen>
             ),
           ),
 
-          // === Side panel (isolated from canvas) ===
+          // === Debug button (Right) ===
+          Positioned(
+            top: 50,
+            right: 20,
+            child: IconButton(
+              icon: const Icon(
+                Icons.bug_report,
+                color: Colors.white54,
+                size: 30,
+              ),
+              onPressed: () {
+                setState(() {
+                  _isDebugPanelOpen = !_isDebugPanelOpen;
+                });
+              },
+            ),
+          ),
+
+          // === Side panel (Left) ===
           SidePanel(
             screenWidth: _screenSize.width > 0
                 ? _screenSize.width
                 : MediaQuery.of(context).size.width,
+          ),
+
+          // === Debug panel (Right) ===
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            top: 0,
+            bottom: 0,
+            right: _isDebugPanelOpen ? 0 : -300,
+            child: DebugPanel(
+              onClose: () {
+                setState(() {
+                  _isDebugPanelOpen = false;
+                });
+              },
+            ),
           ),
         ],
       ),
