@@ -248,8 +248,26 @@ void physicsIsolateEntry(SendPort sendPort) {
     // Apply velocity and decay
     for (final node in nodes.values) {
       if (node.id == draggingNodeId) {
-        node.vx = 0;
-        node.vy = 0;
+        if (node.dragTargetX != null && node.dragTargetY != null) {
+          final dx = node.dragTargetX! - node.px;
+          final dy = node.dragTargetY! - node.py;
+
+          // Spring force towards target
+          final springForce = 0.4;
+          node.vx += dx * springForce;
+          node.vy += dy * springForce;
+
+          // Stronger damping so it doesn't overshoot repeatedly
+          final damping = 0.5;
+          node.vx *= damping;
+          node.vy *= damping;
+        } else {
+          node.vx = 0;
+          node.vy = 0;
+        }
+
+        node.px += node.vx;
+        node.py += node.vy;
         continue;
       }
 
@@ -359,14 +377,20 @@ void physicsIsolateEntry(SendPort sendPort) {
             draggingNodeId = id;
             if (map.containsKey('position')) {
               final pos = map['position'] as Offset;
-              nodes[id]?.px = pos.dx;
-              nodes[id]?.py = pos.dy;
-              nodes[id]?.vx = 0;
-              nodes[id]?.vy = 0;
+              nodes[id]?.dragTargetX = pos.dx;
+              nodes[id]?.dragTargetY = pos.dy;
+            } else {
+              nodes[id]?.dragTargetX = nodes[id]?.px;
+              nodes[id]?.dragTargetY = nodes[id]?.py;
             }
 
             reheat();
           } else {
+            // End drag cleanly
+            if (draggingNodeId != null) {
+              nodes[draggingNodeId]?.dragTargetX = null;
+              nodes[draggingNodeId]?.dragTargetY = null;
+            }
             draggingNodeId = null;
           }
           break;

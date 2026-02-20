@@ -48,6 +48,7 @@ class _GraphScreenState extends State<GraphScreen>
   final ValueNotifier<int> _graphTickNotifier = ValueNotifier(0);
 
   final ValueNotifier<String?> _draggingNodeId = ValueNotifier(null);
+  Offset? _dragOffset;
   int _dragMoveCount = 0;
 
   Size _screenSize = Size.zero;
@@ -341,7 +342,14 @@ class _GraphScreenState extends State<GraphScreen>
                 if (hitNodeId != null) {
                   _draggingNodeId.value = hitNodeId;
                   _dragMoveCount = 0;
-                  _physicsEngine.startDrag(hitNodeId);
+  final node = nodes[hitNodeId];
+                if (node != null) {
+                  _dragOffset = node.position - localTap;
+                } else {
+                  _dragOffset = Offset.zero;
+                }
+
+                _physicsEngine.startDrag(hitNodeId, localTap + _dragOffset!);
                   if (DebugConstants.enableNodeTapLogging) {
                     _logger.logNodeDragStart(hitNodeId);
                   }
@@ -356,15 +364,13 @@ class _GraphScreenState extends State<GraphScreen>
                   _cancelLongPress();
 
                   final localTap = _getLocalOffset(details.localPosition);
+                final targetPos = localTap + (_dragOffset ?? Offset.zero);
 
-                  final node = nodes[_draggingNodeId.value];
-                  if (node != null) {
-                    node.position = localTap;
+
                     _physicsEngine.updateNodePosition(
                       _draggingNodeId.value!,
-                      localTap,
-                    );
-                  }
+                      targetPos,
+                  );
                 }
               },
               onPointerUp: (PointerUpEvent details) {
