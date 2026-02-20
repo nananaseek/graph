@@ -350,12 +350,12 @@ class GraphDataService {
   /// Imports a graph from a JSON file.
   Future<void> importGraph() async {
     try {
-        String initialDirectory = getDownloadsDirectory().toString();
+        Directory? initialDirectory = await getDownloadsDirectory();
 
       final FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['json'],
-        initialDirectory: initialDirectory,
+        initialDirectory: initialDirectory.toString(),
         withData: true, // Important for Web/WASM
       );
 
