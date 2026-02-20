@@ -22,16 +22,10 @@ class CameraService {
     _vsync = vsync;
   }
 
-  /// Animate the camera to center on [nodePosition] with zoom such that
-  /// a node of [nodeRadius] occupies ~45% of the visible viewport.
-  void animateTo(Offset nodePosition, double nodeRadius, Size screenSize) {
-    // Target scale: nodeRadius * 2 should be 45% of min(screenWidth, screenHeight)
-    final targetDiameter = nodeRadius * 2;
-    final targetViewSize = screenSize.shortestSide;
-    final targetScale = (targetViewSize * 0.05) / targetDiameter;
-
-    // Clamp scale to InteractiveViewer bounds
-    final scale = targetScale.clamp(0.3, 5.0);
+  /// Animate the camera to center on [nodePosition] maintaining current zoom.
+  void animateTo(Offset nodePosition, Size screenSize) {
+    // Keep current scale
+    final scale = controller.value.getMaxScaleOnAxis();
 
     // Translation to center the node on screen
     final tx = screenSize.width / 2 - nodePosition.dx * scale;

@@ -287,7 +287,7 @@ class _GraphScreenState extends State<GraphScreen>
       _selectedNodeService.openPanel();
 
       // Animate camera
-      _cameraService.animateTo(node.position, node.radius, _screenSize);
+      _cameraService.animateTo(node.position, _screenSize);
 
       if (DebugConstants.enableNodeSelectionLogging) {
         _logger.logNodeSelection(hitNodeId);

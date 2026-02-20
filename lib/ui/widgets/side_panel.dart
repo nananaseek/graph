@@ -266,11 +266,7 @@ class _PanelContent extends StatelessWidget {
       // Use cached screen size from SidePanel static member
       final screenSize = SidePanel._cachedScreenSize;
       if (screenSize != null) {
-        cameraService.animateTo(
-          visibleNode.position,
-          visibleNode.radius,
-          screenSize,
-        );
+        cameraService.animateTo(visibleNode.position, screenSize);
       }
     }
   }
