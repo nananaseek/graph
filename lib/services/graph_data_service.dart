@@ -10,9 +10,7 @@ import '../core/service_locator.dart';
 import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:file_saver/file_saver.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
 
 import 'debug_service.dart';
@@ -324,8 +322,6 @@ class GraphDataService {
     try {
       isLoading.value = true;
 
-      // We only need to export master nodes.
-      // Their toJson() method recursively exports children.
       final jsonList = masterNodes
           .map((node) => node.toJson(allNodes: allNodes))
           .toList();
@@ -335,56 +331,17 @@ class GraphDataService {
       final fileName =
           'graph_export_${DateTime.now().millisecondsSinceEpoch}.json';
 
-      if (kIsWeb) {
-        await FileSaver.instance.saveFile(
-          name: 'graph_export', // FileSaver handles extension
-          ext: 'json',
-          bytes: bytes,
-        );
-      } else if (Platform.isAndroid || Platform.isIOS) {
-        // Mobile: Save directly to Downloads/Documents
+      await FilePicker.platform.saveFile(
+        dialogTitle: 'Save Graph',
+        fileName: fileName,
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+        bytes: bytes,
+      );
 
-        // Request storage permission on Android if needed
-        if (Platform.isAndroid) {
-          final status = await Permission.storage.status;
-          if (!status.isGranted) {
-            await Permission.storage.request();
-
-            // For Android 11+ (API 30+) scoped storage, MANAGE_EXTERNAL_STORAGE might be needed
-            // but usually regular storage permission or just writing to app-specific dirs is enough.
-            // However, getDownloadsDirectory returns a public directory.
-
-            // If standard storage permission is denied, check for manageable constraints or just proceed
-            // and let the OS handle it (sometimes it works for media/downloads without full perms on newer Androids)
-            // But for now, we'll log it.
-            debugPrint('Storage permission denied');
-
-            // Optionally throw or return to stop
-            throw Exception('Storage permission denied');
-          }
-        }
-
-        final directory =
-            await getDownloadsDirectory() ??
-            await getApplicationDocumentsDirectory();
-        final path = '${directory.path}/$fileName';
-        final file = File(path);
-        await file.writeAsBytes(bytes);
-        debugPrint('Saved to $path');
-        // Optional: Show a message or notification? The UI handles success based on no error thrown.
-      } else {
-        // Desktop: Save As Dialog
-        final result = await FileSaver.instance.saveAs(
-          name: fileName,
-          bytes: bytes,
-          ext: 'json',
-          mimeType: MimeType.json,
-        );
-        debugPrint('Saved to $result');
-      }
     } catch (e) {
       debugPrint('Error exporting graph: $e');
-      rethrow; // Let UI handle error
+      rethrow;
     } finally {
       isLoading.value = false;
     }
@@ -393,20 +350,9 @@ class GraphDataService {
   /// Imports a graph from a JSON file.
   Future<void> importGraph() async {
     try {
-      String? initialDirectory;
-      if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
-        if (Platform.isAndroid) {
-          final status = await Permission.storage.request();
-          if (!status.isGranted) {
-            debugPrint('Storage permission denied');
-            throw Exception('Storage permission denied');
-          }
-        }
-        final directory = await getDownloadsDirectory();
-        initialDirectory = directory?.path;
-      }
+        String initialDirectory = getDownloadsDirectory().toString();
 
-      final result = await FilePicker.platform.pickFiles(
+      final FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['json'],
         initialDirectory: initialDirectory,
@@ -425,10 +371,6 @@ class GraphDataService {
         if (bytes == null) throw Exception('File bytes are null');
         jsonString = utf8.decode(bytes);
       } else {
-        // On Mobile/Desktop, strictly read from path if bytes are empty (though withData: true should give bytes)
-        // But FilePicker documentation says: "File content (bytes) is available only if [withData] is true.
-        // If [withData] is false, use [path] to read the file."
-        // We set withData: true, but just in case, or for large files:
         if (file.bytes != null) {
           jsonString = utf8.decode(file.bytes!);
         } else if (file.path != null) {
