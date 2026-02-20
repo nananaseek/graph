@@ -10,6 +10,9 @@ class PhysicsNode {
   double mass;
   double radius;
 
+  double? dragTargetX;
+  double? dragTargetY;
+
   double sqrtMass;
 
   PhysicsNode({

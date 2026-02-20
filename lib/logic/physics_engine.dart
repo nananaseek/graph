@@ -139,9 +139,13 @@ class PhysicsEngine {
     );
   }
 
-  void startDrag(String id) {
+  void startDrag(String id, [Offset? position]) {
     if (_sendPort == null) return;
-    _sendPort!.send(PhysicsMessage(PhysicsCommand.touchNode, {'id': id}));
+    final map = <String, dynamic>{'id': id};
+    if (position != null) {
+      map['position'] = position;
+    }
+    _sendPort!.send(PhysicsMessage(PhysicsCommand.touchNode, map));
   }
 
   void endDrag() {
