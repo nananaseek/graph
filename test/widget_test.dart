@@ -47,7 +47,7 @@ class FakePhysicsEngine implements PhysicsEngine {
   void removeNode(String id) {}
 
   @override
-  void startDrag(String id) {}
+  void startDrag(String id, [Offset? position]) {}
 
   @override
   void updateNodePosition(String id, Offset position) {}
