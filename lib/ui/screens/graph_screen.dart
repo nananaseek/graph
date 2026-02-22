@@ -329,7 +329,7 @@ class _GraphScreenState extends State<GraphScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1E1E1E),
+      backgroundColor: const Color(0xFF0d2029),
       body: LoadingOverlay(
         isLoadingNotifier: _graphDataService.isLoading,
         child: Stack(
@@ -342,14 +342,14 @@ class _GraphScreenState extends State<GraphScreen>
                 if (hitNodeId != null) {
                   _draggingNodeId.value = hitNodeId;
                   _dragMoveCount = 0;
-  final node = nodes[hitNodeId];
-                if (node != null) {
-                  _dragOffset = node.position - localTap;
-                } else {
-                  _dragOffset = Offset.zero;
-                }
+                  final node = nodes[hitNodeId];
+                  if (node != null) {
+                    _dragOffset = node.position - localTap;
+                  } else {
+                    _dragOffset = Offset.zero;
+                  }
 
-                _physicsEngine.startDrag(hitNodeId, localTap + _dragOffset!);
+                  _physicsEngine.startDrag(hitNodeId, localTap + _dragOffset!);
                   if (DebugConstants.enableNodeTapLogging) {
                     _logger.logNodeDragStart(hitNodeId);
                   }
@@ -364,12 +364,11 @@ class _GraphScreenState extends State<GraphScreen>
                   _cancelLongPress();
 
                   final localTap = _getLocalOffset(details.localPosition);
-                final targetPos = localTap + (_dragOffset ?? Offset.zero);
+                  final targetPos = localTap + (_dragOffset ?? Offset.zero);
 
-
-                    _physicsEngine.updateNodePosition(
-                      _draggingNodeId.value!,
-                      targetPos,
+                  _physicsEngine.updateNodePosition(
+                    _draggingNodeId.value!,
+                    targetPos,
                   );
                 }
               },
@@ -451,7 +450,11 @@ class _GraphScreenState extends State<GraphScreen>
               top: 50,
               left: 20,
               child: IconButton(
-                icon: const Icon(Icons.menu, color: Colors.white, size: 30),
+                icon: const Icon(
+                  Icons.menu,
+                  color: Color(0xFF80cde3),
+                  size: 30,
+                ),
                 onPressed: () => _selectedNodeService.togglePanel(),
               ),
             ),

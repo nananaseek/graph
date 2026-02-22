@@ -1,1067 +1,803 @@
 [
   {
-    "id": "hub-1",
+    "id": "root-1",
     "position": {
-      "dx": 767.4955656908561,
-      "dy": 131.17564159917632
+      "dx": 100.0,
+      "dy": 100.0
     },
-    "label": "Hub A",
-    "name": "Central Hub 1",
-    "selfGeneratedMoney": 23642.41,
-    "mass": 5.0,
-    "radius": 30.0,
+    "label": "R-1",
+    "name": "Ivan Petrenko",
+    "selfGeneratedMoney": 8450.25,
+    "mass": 4.5,
+    "radius": 1.0,
     "parentId": null,
     "attachedNodeIds": [],
     "children": [
       {
-        "id": "node-1",
+        "id": "node-1-1",
         "position": {
-          "dx": 772.4254008895048,
-          "dy": 68.08555935327918
+          "dx": 125.0,
+          "dy": 80.0
         },
-        "label": "N-2",
-        "name": "Worker Node 2",
-        "selfGeneratedMoney": 4358.28,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-1",
+        "label": "N-1",
+        "name": "Olena Koval",
+        "selfGeneratedMoney": 2100.5,
+        "mass": 1.2,
+        "radius": 1.0,
+        "parentId": "root-1",
         "attachedNodeIds": [
-          "hub-1"
+          "root-1"
         ],
-        "children": []
+        "children": [
+          {
+            "id": "node-1-1-1",
+            "position": {
+              "dx": 150.5,
+              "dy": 110.2
+            },
+            "label": "N-2",
+            "name": "Dmytro Shevchuk",
+            "selfGeneratedMoney": 540.0,
+            "mass": 2.1,
+            "radius": 1.0,
+            "parentId": "node-1-1",
+            "attachedNodeIds": [
+              "node-1-1"
+            ],
+            "children": [
+              {
+                "id": "node-1-1-1-1",
+                "position": {
+                  "dx": 115.0,
+                  "dy": 140.0
+                },
+                "label": "N-3",
+                "name": "Kateryna Boyko",
+                "selfGeneratedMoney": 890.75,
+                "mass": 1.8,
+                "radius": 1.0,
+                "parentId": "node-1-1-1",
+                "attachedNodeIds": [
+                  "node-1-1-1"
+                ],
+                "children": [
+                  {
+                    "id": "node-1-1-1-1-1",
+                    "position": {
+                      "dx": 145.0,
+                      "dy": 180.5
+                    },
+                    "label": "N-4",
+                    "name": "Serhiy Tkachenko",
+                    "selfGeneratedMoney": 320.1,
+                    "mass": 0.9,
+                    "radius": 1.0,
+                    "parentId": "node-1-1-1-1",
+                    "attachedNodeIds": [
+                      "node-1-1-1-1"
+                    ],
+                    "children": [
+                      {
+                        "id": "node-1-1-1-1-1-1",
+                        "position": {
+                          "dx": 110.0,
+                          "dy": 210.0
+                        },
+                        "label": "N-5",
+                        "name": "Anna Kravchenko",
+                        "selfGeneratedMoney": 150.0,
+                        "mass": 1.1,
+                        "radius": 1.0,
+                        "parentId": "node-1-1-1-1-1",
+                        "attachedNodeIds": [
+                          "node-1-1-1-1-1"
+                        ],
+                        "children": [
+                          {
+                            "id": "node-1-1-1-1-1-1-1",
+                            "position": {
+                              "dx": 90.5,
+                              "dy": 180.0
+                            },
+                            "label": "N-6",
+                            "name": "Mykola Savchenko",
+                            "selfGeneratedMoney": 45.2,
+                            "mass": 0.5,
+                            "radius": 1.0,
+                            "parentId": "node-1-1-1-1-1-1",
+                            "attachedNodeIds": [
+                              "node-1-1-1-1-1-1"
+                            ],
+                            "children": []
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
       },
       {
-        "id": "node-2",
+        "id": "node-1-2",
         "position": {
-          "dx": 783.3750870302974,
-          "dy": 1.2778703866233627
-        },
-        "label": "N-3",
-        "name": "Worker Node 3",
-        "selfGeneratedMoney": 4705.35,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-1",
-        "attachedNodeIds": [
-          "hub-1"
-        ],
-        "children": []
-      },
-      {
-        "id": "node-3",
-        "position": {
-          "dx": 712.3476054602412,
-          "dy": 142.41870374736266
-        },
-        "label": "N-4",
-        "name": "Worker Node 4",
-        "selfGeneratedMoney": 616.3,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-1",
-        "attachedNodeIds": [
-          "hub-1"
-        ],
-        "children": []
-      },
-      {
-        "id": "node-4",
-        "position": {
-          "dx": 841.62248646525,
-          "dy": 116.91944273934034
-        },
-        "label": "N-5",
-        "name": "Worker Node 5",
-        "selfGeneratedMoney": 3337.97,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-1",
-        "attachedNodeIds": [
-          "hub-1"
-        ],
-        "children": []
-      },
-      {
-        "id": "node-5",
-        "position": {
-          "dx": 696.1568021315642,
-          "dy": 7.969764857018944
-        },
-        "label": "N-6",
-        "name": "Worker Node 6",
-        "selfGeneratedMoney": 1483.12,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-1",
-        "attachedNodeIds": [
-          "hub-1"
-        ],
-        "children": []
-      },
-      {
-        "id": "node-6",
-        "position": {
-          "dx": 851.7040552876806,
-          "dy": 66.25844885684789
+          "dx": 80.0,
+          "dy": 140.0
         },
         "label": "N-7",
-        "name": "Worker Node 7",
-        "selfGeneratedMoney": 3873.86,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-1",
+        "name": "Igor Melnyk",
+        "selfGeneratedMoney": 3400.0,
+        "mass": 2.5,
+        "radius": 1.0,
+        "parentId": "root-1",
         "attachedNodeIds": [
-          "hub-1"
+          "root-1"
         ],
-        "children": [
-          {
-            "id": "node-7",
-            "position": {
-              "dx": 838.4995923571996,
-              "dy": 97.74481555248312
-            },
-            "label": "G-8",
-            "name": "Sub-node 8",
-            "selfGeneratedMoney": 308.41,
-            "mass": 0.8,
-            "radius": 14.0,
-            "parentId": "node-6",
-            "attachedNodeIds": [
-              "node-6"
-            ],
-            "children": []
-          }
-        ]
+        "children": []
       },
       {
-        "id": "node-8",
+        "id": "node-1-3",
         "position": {
-          "dx": 738.5725342168269,
-          "dy": 41.6191083964937
+          "dx": 120.0,
+          "dy": 60.0
+        },
+        "label": "N-8",
+        "name": "Maria Bondarenko",
+        "selfGeneratedMoney": 1200.0,
+        "mass": 1.4,
+        "radius": 1.0,
+        "parentId": "root-1",
+        "attachedNodeIds": [
+          "root-1"
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "id": "root-2",
+    "position": {
+      "dx": 300.0,
+      "dy": 100.0
+    },
+    "label": "R-2",
+    "name": "John Smith",
+    "selfGeneratedMoney": 5600.8,
+    "mass": 5.0,
+    "radius": 1.0,
+    "parentId": null,
+    "attachedNodeIds": [],
+    "children": [
+      {
+        "id": "node-2-1",
+        "position": {
+          "dx": 280.0,
+          "dy": 80.0
         },
         "label": "N-9",
-        "name": "Worker Node 9",
-        "selfGeneratedMoney": 4179.0,
+        "name": "Jane Doe",
+        "selfGeneratedMoney": 420.0,
         "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-1",
+        "radius": 1.0,
+        "parentId": "root-2",
         "attachedNodeIds": [
-          "hub-1",
-          "node-23"
+          "root-2"
         ],
-        "children": []
+        "children": [
+          {
+            "id": "node-2-1-1",
+            "position": {
+              "dx": 260.0,
+              "dy": 110.0
+            },
+            "label": "N-10",
+            "name": "Michael Johnson",
+            "selfGeneratedMoney": 110.5,
+            "mass": 0.8,
+            "radius": 1.0,
+            "parentId": "node-2-1",
+            "attachedNodeIds": [
+              "node-2-1"
+            ],
+            "children": []
+          }
+        ]
       },
       {
-        "id": "node-9",
+        "id": "node-2-2",
         "position": {
-          "dx": 798.621173595349,
-          "dy": 222.0254795770071
-        },
-        "label": "N-10",
-        "name": "Worker Node 10",
-        "selfGeneratedMoney": 4537.45,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-1",
-        "attachedNodeIds": [
-          "hub-1"
-        ],
-        "children": []
-      },
-      {
-        "id": "node-10",
-        "position": {
-          "dx": 847.8851242434848,
-          "dy": 163.9378672707635
+          "dx": 330.0,
+          "dy": 120.0
         },
         "label": "N-11",
-        "name": "Worker Node 11",
-        "selfGeneratedMoney": 929.04,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-1",
+        "name": "Emily Williams",
+        "selfGeneratedMoney": 890.0,
+        "mass": 1.5,
+        "radius": 1.0,
+        "parentId": "root-2",
         "attachedNodeIds": [
-          "hub-1"
+          "root-2"
         ],
         "children": [
           {
-            "id": "node-11",
+            "id": "node-2-2-1",
             "position": {
-              "dx": 902.6549413224801,
-              "dy": 150.60827798078677
+              "dx": 360.0,
+              "dy": 150.0
             },
-            "label": "G-12",
-            "name": "Sub-node 12",
-            "selfGeneratedMoney": 287.62,
-            "mass": 0.8,
-            "radius": 14.0,
-            "parentId": "node-10",
+            "label": "N-12",
+            "name": "Christopher Brown",
+            "selfGeneratedMoney": 300.0,
+            "mass": 1.1,
+            "radius": 1.0,
+            "parentId": "node-2-2",
             "attachedNodeIds": [
-              "node-10"
+              "node-2-2"
             ],
             "children": []
           }
         ]
       },
       {
-        "id": "node-12",
+        "id": "node-2-3",
         "position": {
-          "dx": 826.8933128232749,
-          "dy": 107.45887081972852
+          "dx": 310.0,
+          "dy": 60.0
         },
         "label": "N-13",
-        "name": "Worker Node 13",
-        "selfGeneratedMoney": 2478.63,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-1",
+        "name": "Sarah Davis",
+        "selfGeneratedMoney": 55.0,
+        "mass": 0.6,
+        "radius": 1.0,
+        "parentId": "root-2",
         "attachedNodeIds": [
-          "hub-1"
+          "root-2"
         ],
         "children": []
-      }
-    ]
-  },
-  {
-    "id": "hub-2",
-    "position": {
-      "dx": 269.07182012179965,
-      "dy": 639.9811028738916
-    },
-    "label": "Hub B",
-    "name": "Central Hub 2",
-    "selfGeneratedMoney": 33611.81,
-    "mass": 5.0,
-    "radius": 30.0,
-    "parentId": null,
-    "attachedNodeIds": [],
-    "children": [
+      },
       {
-        "id": "node-13",
+        "id": "node-2-4",
         "position": {
-          "dx": 217.8586271950585,
-          "dy": 668.2730484595655
+          "dx": 270.0,
+          "dy": 140.0
         },
         "label": "N-14",
-        "name": "Worker Node 14",
-        "selfGeneratedMoney": 2954.63,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-2",
+        "name": "David Miller",
+        "selfGeneratedMoney": 760.0,
+        "mass": 2.0,
+        "radius": 1.0,
+        "parentId": "root-2",
         "attachedNodeIds": [
-          "hub-2"
+          "root-2"
         ],
         "children": []
       },
       {
-        "id": "node-14",
+        "id": "node-2-5",
         "position": {
-          "dx": 261.17045956944395,
-          "dy": 735.6755276679168
+          "dx": 340.0,
+          "dy": 80.0
         },
         "label": "N-15",
-        "name": "Worker Node 15",
-        "selfGeneratedMoney": 1167.22,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-2",
+        "name": "Jessica Wilson",
+        "selfGeneratedMoney": 230.0,
+        "mass": 1.3,
+        "radius": 1.0,
+        "parentId": "root-2",
         "attachedNodeIds": [
-          "hub-2"
+          "root-2"
         ],
         "children": []
       },
       {
-        "id": "node-15",
+        "id": "node-2-6",
         "position": {
-          "dx": 320.73356046409356,
-          "dy": 749.2419924778862
+          "dx": 290.0,
+          "dy": 145.0
         },
         "label": "N-16",
-        "name": "Worker Node 16",
-        "selfGeneratedMoney": 1922.13,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-2",
+        "name": "James Moore",
+        "selfGeneratedMoney": 410.0,
+        "mass": 1.7,
+        "radius": 1.0,
+        "parentId": "root-2",
         "attachedNodeIds": [
-          "hub-2"
-        ],
-        "children": []
-      },
-      {
-        "id": "node-16",
-        "position": {
-          "dx": 194.34022074253537,
-          "dy": 668.9081605012619
-        },
-        "label": "N-17",
-        "name": "Worker Node 17",
-        "selfGeneratedMoney": 4297.23,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-2",
-        "attachedNodeIds": [
-          "hub-2",
-          "node-28"
-        ],
-        "children": []
-      },
-      {
-        "id": "node-17",
-        "position": {
-          "dx": 301.9483051919679,
-          "dy": 755.5048513093262
-        },
-        "label": "N-18",
-        "name": "Worker Node 18",
-        "selfGeneratedMoney": 605.13,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-2",
-        "attachedNodeIds": [
-          "hub-2"
-        ],
-        "children": []
-      },
-      {
-        "id": "node-18",
-        "position": {
-          "dx": 321.4352159988706,
-          "dy": 614.788959450802
-        },
-        "label": "N-19",
-        "name": "Worker Node 19",
-        "selfGeneratedMoney": 902.82,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-2",
-        "attachedNodeIds": [
-          "hub-2"
-        ],
-        "children": []
-      },
-      {
-        "id": "node-19",
-        "position": {
-          "dx": 320.9364576104217,
-          "dy": 580.0451680174269
-        },
-        "label": "N-20",
-        "name": "Worker Node 20",
-        "selfGeneratedMoney": 3205.97,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-2",
-        "attachedNodeIds": [
-          "hub-2"
-        ],
-        "children": [
-          {
-            "id": "node-20",
-            "position": {
-              "dx": 337.1012543941662,
-              "dy": 544.8098076931843
-            },
-            "label": "G-21",
-            "name": "Sub-node 21",
-            "selfGeneratedMoney": 970.26,
-            "mass": 0.8,
-            "radius": 14.0,
-            "parentId": "node-19",
-            "attachedNodeIds": [
-              "node-19"
-            ],
-            "children": []
-          }
-        ]
-      },
-      {
-        "id": "node-21",
-        "position": {
-          "dx": 286.92305514208414,
-          "dy": 698.701876196716
-        },
-        "label": "N-22",
-        "name": "Worker Node 22",
-        "selfGeneratedMoney": 2582.67,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-2",
-        "attachedNodeIds": [
-          "hub-2"
-        ],
-        "children": [
-          {
-            "id": "node-22",
-            "position": {
-              "dx": 332.44818047307456,
-              "dy": 712.7090054786622
-            },
-            "label": "G-23",
-            "name": "Sub-node 23",
-            "selfGeneratedMoney": 138.07,
-            "mass": 0.8,
-            "radius": 14.0,
-            "parentId": "node-21",
-            "attachedNodeIds": [
-              "node-21"
-            ],
-            "children": []
-          }
-        ]
-      },
-      {
-        "id": "node-23",
-        "position": {
-          "dx": 199.84009603726224,
-          "dy": 647.6564221439569
-        },
-        "label": "N-24",
-        "name": "Worker Node 24",
-        "selfGeneratedMoney": 4089.28,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-2",
-        "attachedNodeIds": [
-          "hub-2",
-          "node-10"
-        ],
-        "children": []
-      },
-      {
-        "id": "node-24",
-        "position": {
-          "dx": 216.100096401161,
-          "dy": 538.2101205579648
-        },
-        "label": "N-25",
-        "name": "Worker Node 25",
-        "selfGeneratedMoney": 4289.63,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-2",
-        "attachedNodeIds": [
-          "hub-2"
+          "root-2"
         ],
         "children": []
       }
     ]
   },
   {
-    "id": "hub-3",
+    "id": "root-3",
     "position": {
-      "dx": 693.1898608358716,
-      "dy": 133.7565451174979
+      "dx": 500.0,
+      "dy": 100.0
     },
-    "label": "Hub C",
-    "name": "Central Hub 3",
-    "selfGeneratedMoney": 21530.4,
-    "mass": 5.0,
-    "radius": 30.0,
-    "parentId": null,
-    "attachedNodeIds": [
-      "node-7"
-    ],
-    "children": [
-      {
-        "id": "node-25",
-        "position": {
-          "dx": 774.9875995020153,
-          "dy": 168.95270908464047
-        },
-        "label": "N-26",
-        "name": "Worker Node 26",
-        "selfGeneratedMoney": 3622.66,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-3",
-        "attachedNodeIds": [
-          "hub-3"
-        ],
-        "children": []
-      },
-      {
-        "id": "node-26",
-        "position": {
-          "dx": 681.5053496935851,
-          "dy": 192.93246139741035
-        },
-        "label": "N-27",
-        "name": "Worker Node 27",
-        "selfGeneratedMoney": 4033.41,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-3",
-        "attachedNodeIds": [
-          "hub-3"
-        ],
-        "children": []
-      },
-      {
-        "id": "node-27",
-        "position": {
-          "dx": 812.097105803069,
-          "dy": 178.72313588701132
-        },
-        "label": "N-28",
-        "name": "Worker Node 28",
-        "selfGeneratedMoney": 3821.04,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-3",
-        "attachedNodeIds": [
-          "hub-3"
-        ],
-        "children": []
-      },
-      {
-        "id": "node-28",
-        "position": {
-          "dx": 610.7733302302618,
-          "dy": 77.06813123546291
-        },
-        "label": "N-29",
-        "name": "Worker Node 29",
-        "selfGeneratedMoney": 3870.64,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-3",
-        "attachedNodeIds": [
-          "hub-3"
-        ],
-        "children": []
-      },
-      {
-        "id": "node-29",
-        "position": {
-          "dx": 799.4132206410311,
-          "dy": 210.72538346799223
-        },
-        "label": "N-30",
-        "name": "Worker Node 30",
-        "selfGeneratedMoney": 2058.73,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-3",
-        "attachedNodeIds": [
-          "hub-3"
-        ],
-        "children": [
-          {
-            "id": "node-30",
-            "position": {
-              "dx": 851.1774885266535,
-              "dy": 185.93256654661522
-            },
-            "label": "G-31",
-            "name": "Sub-node 31",
-            "selfGeneratedMoney": 419.51,
-            "mass": 0.8,
-            "radius": 14.0,
-            "parentId": "node-29",
-            "attachedNodeIds": [
-              "node-29"
-            ],
-            "children": []
-          }
-        ]
-      },
-      {
-        "id": "node-31",
-        "position": {
-          "dx": 614.0387154723585,
-          "dy": 217.32794279700352
-        },
-        "label": "N-32",
-        "name": "Worker Node 32",
-        "selfGeneratedMoney": 2630.43,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-3",
-        "attachedNodeIds": [
-          "hub-3"
-        ],
-        "children": []
-      },
-      {
-        "id": "node-32",
-        "position": {
-          "dx": 680.4485515823804,
-          "dy": 49.31780571062184
-        },
-        "label": "N-33",
-        "name": "Worker Node 33",
-        "selfGeneratedMoney": 818.45,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-3",
-        "attachedNodeIds": [
-          "hub-3"
-        ],
-        "children": []
-      },
-      {
-        "id": "node-33",
-        "position": {
-          "dx": 636.1776010984395,
-          "dy": 134.07718537632218
-        },
-        "label": "N-34",
-        "name": "Worker Node 34",
-        "selfGeneratedMoney": 4409.17,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-3",
-        "attachedNodeIds": [
-          "hub-3"
-        ],
-        "children": []
-      },
-      {
-        "id": "node-34",
-        "position": {
-          "dx": 605.5803702789708,
-          "dy": 209.5384039442497
-        },
-        "label": "N-35",
-        "name": "Worker Node 35",
-        "selfGeneratedMoney": 693.84,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-3",
-        "attachedNodeIds": [
-          "hub-3"
-        ],
-        "children": []
-      },
-      {
-        "id": "node-35",
-        "position": {
-          "dx": 659.597576910805,
-          "dy": 90.02003867736069
-        },
-        "label": "N-36",
-        "name": "Worker Node 36",
-        "selfGeneratedMoney": 2619.85,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-3",
-        "attachedNodeIds": [
-          "hub-3",
-          "node-10"
-        ],
-        "children": []
-      }
-    ]
-  },
-  {
-    "id": "hub-4",
-    "position": {
-      "dx": 761.4861310347937,
-      "dy": 759.4537531848047
-    },
-    "label": "Hub D",
-    "name": "Central Hub 4",
-    "selfGeneratedMoney": 36004.63,
-    "mass": 5.0,
-    "radius": 30.0,
-    "parentId": null,
-    "attachedNodeIds": [
-      "node-35"
-    ],
-    "children": [
-      {
-        "id": "node-36",
-        "position": {
-          "dx": 828.9575306726286,
-          "dy": 720.201906708463
-        },
-        "label": "N-37",
-        "name": "Worker Node 37",
-        "selfGeneratedMoney": 3788.76,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-4",
-        "attachedNodeIds": [
-          "hub-4"
-        ],
-        "children": []
-      },
-      {
-        "id": "node-37",
-        "position": {
-          "dx": 708.4840009231045,
-          "dy": 779.5325355118381
-        },
-        "label": "N-38",
-        "name": "Worker Node 38",
-        "selfGeneratedMoney": 1757.05,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-4",
-        "attachedNodeIds": [
-          "hub-4"
-        ],
-        "children": [
-          {
-            "id": "node-38",
-            "position": {
-              "dx": 713.2046479085523,
-              "dy": 748.1324758459469
-            },
-            "label": "G-39",
-            "name": "Sub-node 39",
-            "selfGeneratedMoney": 984.47,
-            "mass": 0.8,
-            "radius": 14.0,
-            "parentId": "node-37",
-            "attachedNodeIds": [
-              "node-37"
-            ],
-            "children": []
-          }
-        ]
-      },
-      {
-        "id": "node-39",
-        "position": {
-          "dx": 676.7476240884205,
-          "dy": 788.8543973444489
-        },
-        "label": "N-40",
-        "name": "Worker Node 40",
-        "selfGeneratedMoney": 4234.65,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-4",
-        "attachedNodeIds": [
-          "hub-4"
-        ],
-        "children": []
-      },
-      {
-        "id": "node-40",
-        "position": {
-          "dx": 701.9380561933141,
-          "dy": 890.0109349619
-        },
-        "label": "N-41",
-        "name": "Worker Node 41",
-        "selfGeneratedMoney": 595.48,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-4",
-        "attachedNodeIds": [
-          "hub-4",
-          "node-35"
-        ],
-        "children": []
-      },
-      {
-        "id": "node-41",
-        "position": {
-          "dx": 805.6581343789067,
-          "dy": 803.9022752120529
-        },
-        "label": "N-42",
-        "name": "Worker Node 42",
-        "selfGeneratedMoney": 4206.65,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-4",
-        "attachedNodeIds": [
-          "hub-4"
-        ],
-        "children": []
-      },
-      {
-        "id": "node-42",
-        "position": {
-          "dx": 696.7068256977192,
-          "dy": 683.4290329153431
-        },
-        "label": "N-43",
-        "name": "Worker Node 43",
-        "selfGeneratedMoney": 3052.6,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-4",
-        "attachedNodeIds": [
-          "hub-4"
-        ],
-        "children": []
-      },
-      {
-        "id": "node-43",
-        "position": {
-          "dx": 799.4622751193999,
-          "dy": 805.1869272154283
-        },
-        "label": "N-44",
-        "name": "Worker Node 44",
-        "selfGeneratedMoney": 2462.7,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-4",
-        "attachedNodeIds": [
-          "hub-4"
-        ],
-        "children": []
-      },
-      {
-        "id": "node-44",
-        "position": {
-          "dx": 672.9973115589705,
-          "dy": 717.6286026120746
-        },
-        "label": "N-45",
-        "name": "Worker Node 45",
-        "selfGeneratedMoney": 4555.17,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-4",
-        "attachedNodeIds": [
-          "hub-4"
-        ],
-        "children": []
-      },
-      {
-        "id": "node-45",
-        "position": {
-          "dx": 907.3033109843343,
-          "dy": 738.6827875690398
-        },
-        "label": "N-46",
-        "name": "Worker Node 46",
-        "selfGeneratedMoney": 1130.47,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-4",
-        "attachedNodeIds": [
-          "hub-4"
-        ],
-        "children": []
-      },
-      {
-        "id": "node-46",
-        "position": {
-          "dx": 744.2736520529348,
-          "dy": 656.4719924660925
-        },
-        "label": "N-47",
-        "name": "Worker Node 47",
-        "selfGeneratedMoney": 4141.99,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-4",
-        "attachedNodeIds": [
-          "hub-4"
-        ],
-        "children": []
-      }
-    ]
-  },
-  {
-    "id": "hub-5",
-    "position": {
-      "dx": 454.67796923262694,
-      "dy": 757.0788409634033
-    },
-    "label": "Hub E",
-    "name": "Central Hub 5",
-    "selfGeneratedMoney": 46220.69,
-    "mass": 5.0,
-    "radius": 30.0,
+    "label": "R-3",
+    "name": "Marta Garcia",
+    "selfGeneratedMoney": 9200.0,
+    "mass": 6.1,
+    "radius": 1.0,
     "parentId": null,
     "attachedNodeIds": [],
     "children": [
       {
-        "id": "node-47",
+        "id": "node-3-1",
         "position": {
-          "dx": 494.1374538987029,
-          "dy": 803.9817195861742
+          "dx": 470.0,
+          "dy": 120.0
         },
-        "label": "N-48",
-        "name": "Worker Node 48",
-        "selfGeneratedMoney": 2846.86,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-5",
+        "label": "N-17",
+        "name": "Carlos Martinez",
+        "selfGeneratedMoney": 1250.0,
+        "mass": 2.2,
+        "radius": 1.0,
+        "parentId": "root-3",
         "attachedNodeIds": [
-          "hub-5",
-          "node-45"
-        ],
-        "children": []
-      },
-      {
-        "id": "node-48",
-        "position": {
-          "dx": 406.729885205389,
-          "dy": 730.2593415021225
-        },
-        "label": "N-49",
-        "name": "Worker Node 49",
-        "selfGeneratedMoney": 3248.86,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-5",
-        "attachedNodeIds": [
-          "hub-5"
+          "root-3"
         ],
         "children": [
           {
-            "id": "node-49",
+            "id": "node-3-1-1",
             "position": {
-              "dx": 450.1381392575603,
-              "dy": 745.7713330986834
+              "dx": 450.0,
+              "dy": 150.0
             },
-            "label": "G-50",
-            "name": "Sub-node 50",
-            "selfGeneratedMoney": 641.93,
-            "mass": 0.8,
-            "radius": 14.0,
-            "parentId": "node-48",
+            "label": "N-18",
+            "name": "Ana Rodriguez",
+            "selfGeneratedMoney": 600.0,
+            "mass": 1.5,
+            "radius": 1.0,
+            "parentId": "node-3-1",
             "attachedNodeIds": [
-              "node-48"
+              "node-3-1"
+            ],
+            "children": [
+              {
+                "id": "node-3-1-1-1",
+                "position": {
+                  "dx": 420.0,
+                  "dy": 130.0
+                },
+                "label": "N-19",
+                "name": "Luis Hernandez",
+                "selfGeneratedMoney": 120.0,
+                "mass": 0.9,
+                "radius": 1.0,
+                "parentId": "node-3-1-1",
+                "attachedNodeIds": [
+                  "node-3-1-1"
+                ],
+                "children": []
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "node-3-2",
+        "position": {
+          "dx": 530.0,
+          "dy": 70.0
+        },
+        "label": "N-20",
+        "name": "Elena Lopez",
+        "selfGeneratedMoney": 340.0,
+        "mass": 1.1,
+        "radius": 1.0,
+        "parentId": "root-3",
+        "attachedNodeIds": [
+          "root-3"
+        ],
+        "children": [
+          {
+            "id": "node-3-2-1",
+            "position": {
+              "dx": 560.0,
+              "dy": 90.0
+            },
+            "label": "N-21",
+            "name": "Jorge Gonzalez",
+            "selfGeneratedMoney": 80.0,
+            "mass": 0.7,
+            "radius": 1.0,
+            "parentId": "node-3-2",
+            "attachedNodeIds": [
+              "node-3-2"
             ],
             "children": []
           }
         ]
       },
       {
-        "id": "node-50",
+        "id": "node-3-3",
         "position": {
-          "dx": 485.1939304664216,
-          "dy": 644.4171566327976
+          "dx": 480.0,
+          "dy": 60.0
         },
-        "label": "N-51",
-        "name": "Worker Node 51",
-        "selfGeneratedMoney": 4670.5,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-5",
+        "label": "N-22",
+        "name": "Carmen Perez",
+        "selfGeneratedMoney": 210.0,
+        "mass": 1.4,
+        "radius": 1.0,
+        "parentId": "root-3",
         "attachedNodeIds": [
-          "hub-5"
+          "root-3"
         ],
         "children": []
       },
       {
-        "id": "node-51",
+        "id": "node-3-4",
         "position": {
-          "dx": 569.3542342586842,
-          "dy": 683.2811782980431
+          "dx": 540.0,
+          "dy": 130.0
         },
-        "label": "N-52",
-        "name": "Worker Node 52",
-        "selfGeneratedMoney": 1129.35,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-5",
+        "label": "N-23",
+        "name": "Jose Sanchez",
+        "selfGeneratedMoney": 950.0,
+        "mass": 2.5,
+        "radius": 1.0,
+        "parentId": "root-3",
         "attachedNodeIds": [
-          "hub-5"
+          "root-3"
         ],
         "children": []
       },
       {
-        "id": "node-52",
+        "id": "node-3-5",
         "position": {
-          "dx": 373.13714529268213,
-          "dy": 871.4036453596971
+          "dx": 510.0,
+          "dy": 140.0
         },
-        "label": "N-53",
-        "name": "Worker Node 53",
-        "selfGeneratedMoney": 1952.08,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-5",
+        "label": "N-24",
+        "name": "Laura Ramirez",
+        "selfGeneratedMoney": 430.0,
+        "mass": 1.6,
+        "radius": 1.0,
+        "parentId": "root-3",
         "attachedNodeIds": [
-          "hub-5"
+          "root-3"
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "id": "root-4",
+    "position": {
+      "dx": 700.0,
+      "dy": 100.0
+    },
+    "label": "R-4",
+    "name": "Liam O'Connor",
+    "selfGeneratedMoney": 4100.0,
+    "mass": 3.8,
+    "radius": 1.0,
+    "parentId": null,
+    "attachedNodeIds": [],
+    "children": [
+      {
+        "id": "node-4-1",
+        "position": {
+          "dx": 680.0,
+          "dy": 80.0
+        },
+        "label": "N-25",
+        "name": "Emma Murphy",
+        "selfGeneratedMoney": 150.0,
+        "mass": 0.9,
+        "radius": 1.0,
+        "parentId": "root-4",
+        "attachedNodeIds": [
+          "root-4"
         ],
         "children": []
       },
       {
-        "id": "node-53",
+        "id": "node-4-2",
         "position": {
-          "dx": 383.3362333696606,
-          "dy": 853.3549966612386
+          "dx": 720.0,
+          "dy": 130.0
         },
-        "label": "N-54",
-        "name": "Worker Node 54",
-        "selfGeneratedMoney": 3051.91,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-5",
+        "label": "N-26",
+        "name": "Noah Kelly",
+        "selfGeneratedMoney": 220.0,
+        "mass": 1.1,
+        "radius": 1.0,
+        "parentId": "root-4",
         "attachedNodeIds": [
-          "hub-5",
-          "node-4"
+          "root-4"
         ],
         "children": []
       },
       {
-        "id": "node-54",
+        "id": "node-4-3",
         "position": {
-          "dx": 321.634249757779,
-          "dy": 739.1624416404875
+          "dx": 740.0,
+          "dy": 90.0
         },
-        "label": "N-55",
-        "name": "Worker Node 55",
-        "selfGeneratedMoney": 2345.03,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-5",
+        "label": "N-27",
+        "name": "Olivia Sullivan",
+        "selfGeneratedMoney": 670.0,
+        "mass": 1.9,
+        "radius": 1.0,
+        "parentId": "root-4",
         "attachedNodeIds": [
-          "hub-5",
-          "node-8"
+          "root-4"
         ],
         "children": []
       },
       {
-        "id": "node-55",
+        "id": "node-4-4",
         "position": {
-          "dx": 417.97630920434665,
-          "dy": 796.370232357099
+          "dx": 660.0,
+          "dy": 110.0
         },
-        "label": "N-56",
-        "name": "Worker Node 56",
-        "selfGeneratedMoney": 4486.5,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-5",
+        "label": "N-28",
+        "name": "William Walsh",
+        "selfGeneratedMoney": 880.0,
+        "mass": 2.3,
+        "radius": 1.0,
+        "parentId": "root-4",
         "attachedNodeIds": [
-          "hub-5"
+          "root-4"
         ],
         "children": []
       },
       {
-        "id": "node-56",
+        "id": "node-4-5",
         "position": {
-          "dx": 430.1813974202678,
-          "dy": 851.7410743085121
+          "dx": 690.0,
+          "dy": 60.0
         },
-        "label": "N-57",
-        "name": "Worker Node 57",
-        "selfGeneratedMoney": 3786.75,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-5",
+        "label": "N-29",
+        "name": "Ava Byrne",
+        "selfGeneratedMoney": 310.0,
+        "mass": 1.2,
+        "radius": 1.0,
+        "parentId": "root-4",
         "attachedNodeIds": [
-          "hub-5"
+          "root-4"
         ],
         "children": []
       },
       {
-        "id": "node-57",
+        "id": "node-4-6",
         "position": {
-          "dx": 442.3771591493939,
-          "dy": 664.380914158974
+          "dx": 710.0,
+          "dy": 145.0
         },
-        "label": "N-58",
-        "name": "Worker Node 58",
-        "selfGeneratedMoney": 4222.64,
-        "mass": 1.0,
-        "radius": 18.0,
-        "parentId": "hub-5",
+        "label": "N-30",
+        "name": "Sophia Ryan",
+        "selfGeneratedMoney": 90.0,
+        "mass": 0.8,
+        "radius": 1.0,
+        "parentId": "root-4",
         "attachedNodeIds": [
-          "hub-5"
+          "root-4"
+        ],
+        "children": []
+      },
+      {
+        "id": "node-4-7",
+        "position": {
+          "dx": 735.0,
+          "dy": 120.0
+        },
+        "label": "N-31",
+        "name": "Mia Doyle",
+        "selfGeneratedMoney": 405.0,
+        "mass": 1.4,
+        "radius": 1.0,
+        "parentId": "root-4",
+        "attachedNodeIds": [
+          "root-4"
+        ],
+        "children": []
+      },
+      {
+        "id": "node-4-8",
+        "position": {
+          "dx": 670.0,
+          "dy": 140.0
+        },
+        "label": "N-32",
+        "name": "Lucas Evans",
+        "selfGeneratedMoney": 560.0,
+        "mass": 1.7,
+        "radius": 1.0,
+        "parentId": "root-4",
+        "attachedNodeIds": [
+          "root-4"
+        ],
+        "children": []
+      },
+      {
+        "id": "node-4-9",
+        "position": {
+          "dx": 655.0,
+          "dy": 70.0
+        },
+        "label": "N-33",
+        "name": "Oliver Taylor",
+        "selfGeneratedMoney": 110.0,
+        "mass": 1.0,
+        "radius": 1.0,
+        "parentId": "root-4",
+        "attachedNodeIds": [
+          "root-4"
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "id": "root-5",
+    "position": {
+      "dx": 900.0,
+      "dy": 100.0
+    },
+    "label": "R-5",
+    "name": "Yulia Moroz",
+    "selfGeneratedMoney": 7300.5,
+    "mass": 5.5,
+    "radius": 1.0,
+    "parentId": null,
+    "attachedNodeIds": [],
+    "children": [
+      {
+        "id": "node-5-1",
+        "position": {
+          "dx": 880.0,
+          "dy": 80.0
+        },
+        "label": "N-34",
+        "name": "Oksana Ivanova",
+        "selfGeneratedMoney": 450.0,
+        "mass": 1.3,
+        "radius": 1.0,
+        "parentId": "root-5",
+        "attachedNodeIds": [
+          "root-5"
+        ],
+        "children": []
+      },
+      {
+        "id": "node-5-2",
+        "position": {
+          "dx": 920.0,
+          "dy": 130.0
+        },
+        "label": "N-35",
+        "name": "Vasyl Stus",
+        "selfGeneratedMoney": 1100.0,
+        "mass": 2.4,
+        "radius": 1.0,
+        "parentId": "root-5",
+        "attachedNodeIds": [
+          "root-5"
+        ],
+        "children": []
+      },
+      {
+        "id": "node-5-3",
+        "position": {
+          "dx": 940.0,
+          "dy": 90.0
+        },
+        "label": "N-36",
+        "name": "Taras Hrytsenko",
+        "selfGeneratedMoney": 320.0,
+        "mass": 1.1,
+        "radius": 1.0,
+        "parentId": "root-5",
+        "attachedNodeIds": [
+          "root-5"
+        ],
+        "children": []
+      },
+      {
+        "id": "node-5-4",
+        "position": {
+          "dx": 860.0,
+          "dy": 110.0
+        },
+        "label": "N-37",
+        "name": "Nina Matvienko",
+        "selfGeneratedMoney": 890.0,
+        "mass": 1.8,
+        "radius": 1.0,
+        "parentId": "root-5",
+        "attachedNodeIds": [
+          "root-5"
+        ],
+        "children": []
+      },
+      {
+        "id": "node-5-5",
+        "position": {
+          "dx": 890.0,
+          "dy": 60.0
+        },
+        "label": "N-38",
+        "name": "Viktor Pavlik",
+        "selfGeneratedMoney": 45.0,
+        "mass": 0.7,
+        "radius": 1.0,
+        "parentId": "root-5",
+        "attachedNodeIds": [
+          "root-5"
+        ],
+        "children": []
+      },
+      {
+        "id": "node-5-6",
+        "position": {
+          "dx": 910.0,
+          "dy": 145.0
+        },
+        "label": "N-39",
+        "name": "Svitlana Loboda",
+        "selfGeneratedMoney": 1500.0,
+        "mass": 2.8,
+        "radius": 1.0,
+        "parentId": "root-5",
+        "attachedNodeIds": [
+          "root-5"
+        ],
+        "children": []
+      },
+      {
+        "id": "node-5-7",
+        "position": {
+          "dx": 935.0,
+          "dy": 120.0
+        },
+        "label": "N-40",
+        "name": "Oleg Vynnyk",
+        "selfGeneratedMoney": 2200.0,
+        "mass": 3.1,
+        "radius": 1.0,
+        "parentId": "root-5",
+        "attachedNodeIds": [
+          "root-5"
+        ],
+        "children": []
+      },
+      {
+        "id": "node-5-8",
+        "position": {
+          "dx": 870.0,
+          "dy": 140.0
+        },
+        "label": "N-41",
+        "name": "Andriy Kuzmenko",
+        "selfGeneratedMoney": 990.0,
+        "mass": 2.0,
+        "radius": 1.0,
+        "parentId": "root-5",
+        "attachedNodeIds": [
+          "root-5"
+        ],
+        "children": []
+      },
+      {
+        "id": "node-5-9",
+        "position": {
+          "dx": 855.0,
+          "dy": 70.0
+        },
+        "label": "N-42",
+        "name": "Iryna Bilyk",
+        "selfGeneratedMoney": 340.0,
+        "mass": 1.4,
+        "radius": 1.0,
+        "parentId": "root-5",
+        "attachedNodeIds": [
+          "root-5"
         ],
         "children": []
       }

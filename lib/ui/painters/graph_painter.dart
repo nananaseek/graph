@@ -9,25 +9,38 @@ class GraphPainter extends CustomPainter {
   final Rect? viewport;
 
   final Paint _linePaint = Paint()
-    ..color = const Color.fromRGBO(158, 158, 158, 0.4)
-    ..strokeWidth = 2.5
+    ..color = const Color.fromRGBO(128, 205, 227, 0.35)
+    ..strokeWidth = 2.0
     ..style = PaintingStyle.stroke;
 
   final Paint _nodePaint = Paint()
-    ..color = const Color(0xFF9C27B0)
+    ..color = const Color(0xFF80cde3)
     ..style = PaintingStyle.fill;
 
   final Paint _selectedNodePaint = Paint()
-    ..color = Colors.yellowAccent
+    ..color = const Color(0xFFFFB347)
     ..style = PaintingStyle.fill;
 
-  final Paint _selectedGlowPaint = Paint()
-    ..color = const Color.fromRGBO(255, 255, 0, 0.3);
+  final Paint _glowOuter = Paint()
+    ..color = const Color.fromRGBO(255, 179, 71, 0.15)
+    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 22);
 
-  final Paint _nodeBorderPaint = Paint()
+  final Paint _glowMid = Paint()
+    ..color = const Color.fromRGBO(255, 179, 71, 0.35)
+    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
+
+  final Paint _glowInner = Paint()
+    ..color = const Color.fromRGBO(255, 220, 140, 0.65)
+    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+
+  final Paint _selectedBorderPaint = Paint()
     ..color = Colors.white
-    ..strokeWidth = 2.0
+    ..strokeWidth = 2.5
     ..style = PaintingStyle.stroke;
+
+  final Paint _nodeGlowPaint = Paint()
+    ..color = const Color.fromRGBO(128, 205, 227, 0.25)
+    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
 
   GraphPainter({
     required this.nodes,
@@ -90,17 +103,16 @@ class GraphPainter extends CustomPainter {
       final scaledRadius = node.radius * node.appearanceScale;
 
       if (node.id == selectedNodeId) {
-        canvas.drawCircle(
-          node.position,
-          scaledRadius + 4.0 * node.appearanceScale,
-          _selectedGlowPaint,
-        );
+        canvas.drawCircle(node.position, scaledRadius + 18, _glowOuter);
+        canvas.drawCircle(node.position, scaledRadius + 9, _glowMid);
+        canvas.drawCircle(node.position, scaledRadius + 3, _glowInner);
+
         canvas.drawCircle(node.position, scaledRadius, _selectedNodePaint);
+        canvas.drawCircle(node.position, scaledRadius, _selectedBorderPaint);
       } else {
+        canvas.drawCircle(node.position, scaledRadius + 5, _nodeGlowPaint);
         canvas.drawCircle(node.position, scaledRadius, _nodePaint);
       }
-
-      canvas.drawCircle(node.position, scaledRadius, _nodeBorderPaint);
 
       // Text: show only when fully appeared — no canvas.save/scale/restore overhead
       if (node.textPainter != null && node.appearanceScale >= 1.0) {
