@@ -24,7 +24,8 @@ class SidePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final selectedNodeService = getIt<SelectedNodeService>();
-    final panelWidth = screenWidth * 0.6;
+    final isMobile = screenWidth < 600;
+    final panelWidth = screenWidth * (isMobile ? 0.7 : 0.35);
 
     return ValueListenableBuilder<bool>(
       valueListenable: selectedNodeService.isSidePanelOpen,
@@ -37,7 +38,7 @@ class SidePanel extends StatelessWidget {
           left: isOpen ? 0 : -panelWidth,
           width: panelWidth,
           child: Material(
-            color: const Color.fromRGBO(37, 37, 37, 0.95),
+            color: const Color.fromRGBO(20, 52, 63, 0.97),
             elevation: 10,
             child: SafeArea(
               child: ValueListenableBuilder<List<String>>(
@@ -231,9 +232,11 @@ class _InfoCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.07),
+        color: const Color(0xFF80cde3).withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+        border: Border.all(
+          color: const Color(0xFF80cde3).withValues(alpha: 0.25),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -267,7 +270,7 @@ class _InfoCard extends StatelessWidget {
   Widget _infoRow(IconData icon, String label, String value) {
     return Row(
       children: [
-        Icon(icon, color: const Color(0xFF9C27B0), size: 18),
+        Icon(icon, color: const Color(0xFF80cde3), size: 18),
         const SizedBox(width: 10),
         Text(
           label,
@@ -298,7 +301,7 @@ class _NodeListTile extends StatelessWidget {
     return ListTile(
       leading: Icon(
         node.childrenIds.isNotEmpty ? Icons.hub : Icons.circle,
-        color: const Color(0xFF9C27B0),
+        color: const Color(0xFF80cde3),
         size: 16,
       ),
       title: Text(node.name, style: const TextStyle(color: Colors.white)),

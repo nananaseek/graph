@@ -320,7 +320,7 @@ class _GraphScreenState extends State<GraphScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1E1E1E),
+      backgroundColor: const Color(0xFF0d2029),
       body: Stack(
         children: [
           // === Canvas ===
@@ -435,7 +435,7 @@ class _GraphScreenState extends State<GraphScreen>
             top: 50,
             left: 20,
             child: IconButton(
-              icon: const Icon(Icons.menu, color: Colors.white, size: 30),
+              icon: const Icon(Icons.menu, color: Color(0xFF80cde3), size: 30),
               onPressed: () => _selectedNodeService.togglePanel(),
             ),
           ),
