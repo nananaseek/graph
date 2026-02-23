@@ -230,19 +230,9 @@ class _GraphScreenState extends State<GraphScreen>
   }
 
   void _recalculateNodeSizes() {
-    final degrees = <String, int>{};
     for (final node in nodes.values) {
-      degrees[node.id] = 0;
-    }
-
-    for (final link in links) {
-      degrees[link.sourceId] = (degrees[link.sourceId] ?? 0) + 1;
-      degrees[link.targetId] = (degrees[link.targetId] ?? 0) + 1;
-    }
-
-    for (final node in nodes.values) {
-      final degree = degrees[node.id] ?? 0;
-      node.updateSize(degree);
+      final descendantMoney = _graphDataService.getDescendantsMoney(node.id);
+      node.updateSize(descendantMoney);
     }
 
     // Also update nodes in the isolate

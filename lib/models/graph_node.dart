@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import '../core/constants.dart';
 import '../core/service_locator.dart';
@@ -95,13 +96,17 @@ class GraphNode {
     )..layout();
   }
 
-  void updateSize(int degree) {
+  void updateSize(double totalDescendantMoney) {
     const baseRadius = 18.0;
     const baseMass = 1.0;
 
-    radius = baseRadius + (degree * 1.1);
-    mass = baseMass + (degree * AppConstants.connectionMassModifier);
-    connectionCount = degree;
+    // Log-based scaling to avoid excessively large nodes
+    final moneyFactor = totalDescendantMoney > 0
+        ? log(1 + totalDescendantMoney) / log(10)
+        : 0.0;
+
+    radius = baseRadius + (moneyFactor * 3.0);
+    mass = baseMass + (moneyFactor * AppConstants.connectionMassModifier);
 
     if (mass != _lastMass) {
       _lastMass = mass;

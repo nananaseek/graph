@@ -3,7 +3,7 @@ class AppConstants {
   // Alpha cooling (simulated annealing)
   static const double alphaStart = 0.45;
   static const double alphaMin = 0.001;
-  static const double alphaDecay = 0.02;
+  static const double alphaDecay = 0.01;
   static const double alphaTarget = 0.0;
 
   static const double velocityDecay = 0.2;
