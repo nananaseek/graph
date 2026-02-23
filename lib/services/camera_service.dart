@@ -15,6 +15,7 @@ class CameraService {
   double _animationProgress = 1.0;
   static const _animationDurationMs = 400.0;
   double _elapsedMs = 0.0;
+  VoidCallback? _onComplete;
 
   /// Must be called once with the TickerProvider (from State mixin).
   void init(TransformationController ctrl, TickerProvider vsync) {
@@ -23,7 +24,12 @@ class CameraService {
   }
 
   /// Animate the camera to center on [nodePosition] maintaining current zoom.
-  void animateTo(Offset nodePosition, Size screenSize) {
+  void animateTo(
+    Offset nodePosition,
+    Size screenSize, {
+    VoidCallback? onComplete,
+  }) {
+    _onComplete = onComplete;
     // Keep current scale
     final scale = controller.value.getMaxScaleOnAxis();
 
@@ -70,6 +76,8 @@ class CameraService {
 
     if (_animationProgress >= 1.0) {
       _ticker?.stop();
+      _onComplete?.call();
+      _onComplete = null;
     }
   }
 

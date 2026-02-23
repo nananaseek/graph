@@ -158,6 +158,9 @@ class FakeGraphDataService implements GraphDataService {
 
   @override
   void updateNode(String nodeId, {String? name, double? money}) {}
+
+  @override
+  double getDescendantsMoney(String nodeId) => 0.0;
 }
 
 void main() {

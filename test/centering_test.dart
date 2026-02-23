@@ -139,6 +139,9 @@ class FakeGraphDataService implements GraphDataService {
 
   @override
   Future<void> importGraph() async {}
+
+  @override
+  double getDescendantsMoney(String nodeId) => 0.0;
 }
 
 void main() {

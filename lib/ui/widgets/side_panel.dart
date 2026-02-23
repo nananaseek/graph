@@ -101,34 +101,46 @@ class _PanelContent extends StatelessWidget {
     SelectedNodeService sns,
     bool isEditMode,
   ) {
-    final masters = gds.masterNodes;
-    return Column(
-      children: [
-        _buildHeader(
-          title: 'Твої ноди',
-          onClose: () => sns.closePanel(),
-          trailing: isEditMode
-              ? IconButton(
-                  icon: const Icon(Icons.add, color: Colors.amber),
-                  tooltip: 'Create Root Node',
-                  onPressed: () => gds.createRootNode(),
-                )
-              : null,
-        ),
-        const Divider(color: Colors.white24),
-        Expanded(
-          child: ListView.builder(
-            itemCount: masters.length,
-            itemBuilder: (context, index) {
-              final node = masters[index];
-              return _NodeListTile(
-                node: node,
-                onTap: () => _onNodeTap(node, sns),
-              );
-            },
-          ),
-        ),
-      ],
+    return ValueListenableBuilder<int>(
+      valueListenable: gds.visibleTickNotifier,
+      builder: (context, _, __) {
+        final masters = gds.masterNodes;
+        final totalNodes = gds.allNodes.length;
+        final totalMoney = gds.allNodes.values.fold(
+          0.0,
+          (sum, node) => sum + node.selfGeneratedMoney,
+        );
+
+        return Column(
+          children: [
+            _buildHeader(
+              title: 'Твої ноди',
+              onClose: () => sns.closePanel(),
+              trailing: isEditMode
+                  ? IconButton(
+                      icon: const Icon(Icons.add, color: Colors.amber),
+                      tooltip: 'Create Root Node',
+                      onPressed: () => gds.createRootNode(),
+                    )
+                  : null,
+            ),
+            _GlobalStatsCard(totalNodes: totalNodes, totalMoney: totalMoney),
+            const Divider(color: Colors.white24, height: 1),
+            Expanded(
+              child: ListView.builder(
+                itemCount: masters.length,
+                itemBuilder: (context, index) {
+                  final node = masters[index];
+                  return _NodeListTile(
+                    node: node,
+                    onTap: () => _onNodeTap(node, sns),
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -351,6 +363,62 @@ class _PanelContent extends StatelessWidget {
   }
 }
 
+class _GlobalStatsCard extends StatelessWidget {
+  final int totalNodes;
+  final double totalMoney;
+
+  const _GlobalStatsCard({required this.totalNodes, required this.totalMoney});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(left: 16.0, right: 16.0, bottom: 16.0),
+      decoration: BoxDecoration(
+        color: const Color(0xFF80cde3).withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFF80cde3).withValues(alpha: 0.25),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _infoRow(Icons.account_tree, 'Всього нод', '$totalNodes'),
+          const SizedBox(height: 12),
+          _infoRow(
+            Icons.monetization_on,
+            'Загальний прибуток',
+            '${totalMoney.toStringAsFixed(0)} ₴',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _infoRow(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Icon(icon, color: const Color(0xFF80cde3), size: 18),
+        const SizedBox(width: 10),
+        Text(
+          label,
+          style: const TextStyle(color: Colors.white54, fontSize: 13),
+        ),
+        const Spacer(),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _InfoCard extends StatelessWidget {
   final GraphNode node;
 
@@ -358,6 +426,10 @@ class _InfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final gds = getIt<GraphDataService>();
+    final descendantsMoney = gds.getDescendantsMoney(node.id);
+    final totalMoney = node.selfGeneratedMoney + descendantsMoney;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -372,10 +444,22 @@ class _InfoCard extends StatelessWidget {
         children: [
           _infoRow(
             Icons.monetization_on,
-            'Згенеровані гроші',
+            'Власний прибуток',
             '${node.selfGeneratedMoney.toStringAsFixed(0)} ₴',
           ),
           const SizedBox(height: 12),
+          _infoRow(
+            Icons.people_alt,
+            'Від мережі (slave)',
+            '${descendantsMoney.toStringAsFixed(0)} ₴',
+          ),
+          const SizedBox(height: 12),
+          _infoRow(
+            Icons.account_balance_wallet,
+            'Загалом гілка',
+            '${totalMoney.toStringAsFixed(0)} ₴',
+          ),
+          const Divider(color: Colors.white24, height: 24),
           _infoRow(Icons.link, 'Зв\'язки', '${node.connectionCount}'),
           const SizedBox(height: 12),
           _infoRow(
@@ -427,6 +511,10 @@ class _NodeListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final gds = getIt<GraphDataService>();
+    final totalMoney =
+        node.selfGeneratedMoney + gds.getDescendantsMoney(node.id);
+
     return ListTile(
       leading: Icon(
         node.childrenIds.isNotEmpty ? Icons.hub : Icons.circle,
@@ -435,7 +523,7 @@ class _NodeListTile extends StatelessWidget {
       ),
       title: Text(node.name, style: const TextStyle(color: Colors.white)),
       subtitle: Text(
-        '${node.selfGeneratedMoney.toStringAsFixed(0)} ₴  •  ${node.childrenIds.length} slave',
+        '${totalMoney.toStringAsFixed(0)} ₴  •  ${node.childrenIds.length} slave',
         style: const TextStyle(color: Colors.white38, fontSize: 11),
       ),
       trailing: node.childrenIds.isNotEmpty

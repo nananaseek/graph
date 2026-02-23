@@ -52,11 +52,6 @@ class GraphPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (viewport != null) {
-      canvas.save();
-      canvas.clipRect(viewport!);
-    }
-
     // Draw links — hide if either node hasn't appeared enough
     for (final link in links) {
       final source = nodes[link.sourceId];
@@ -121,10 +116,6 @@ class GraphPainter extends CustomPainter {
           node.position - Offset(node.textPainter!.width / 2, node.radius + 15),
         );
       }
-    }
-
-    if (viewport != null) {
-      canvas.restore();
     }
   }
 

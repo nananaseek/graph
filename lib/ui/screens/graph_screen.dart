@@ -48,6 +48,7 @@ class _GraphScreenState extends State<GraphScreen>
   final ValueNotifier<int> _graphTickNotifier = ValueNotifier(0);
 
   final ValueNotifier<String?> _draggingNodeId = ValueNotifier(null);
+  final ValueNotifier<bool> _isAnimatingCamera = ValueNotifier(false);
   Offset? _dragOffset;
   int _dragMoveCount = 0;
 
@@ -221,6 +222,7 @@ class _GraphScreenState extends State<GraphScreen>
     _physicsEngine.dispose();
     _graphTickNotifier.dispose();
     _draggingNodeId.dispose();
+    _isAnimatingCamera.dispose();
     _graphDataService.visibleTickNotifier.removeListener(_onDataServiceChanged);
     _selectedNodeService.selectedNodeId.removeListener(_onSelectionChanged);
     _cameraService.dispose();
@@ -274,21 +276,17 @@ class _GraphScreenState extends State<GraphScreen>
   }
 
   void _handleDoubleTap(Offset screenPos) {
+    _cancelDrag();
     final localPos = _getLocalOffset(screenPos);
     final hitNodeId = _hitTest(localPos);
 
     if (hitNodeId != null) {
-      final node = nodes[hitNodeId]!;
-
       // Select node + open panel
       _selectedNodeService.selectNode(hitNodeId);
       // Also set focus so visibility updates
       _graphDataService.setFocus(hitNodeId);
 
       _selectedNodeService.openPanel();
-
-      // Animate camera
-      _cameraService.animateTo(node.position, _screenSize);
 
       if (DebugConstants.enableNodeSelectionLogging) {
         _logger.logNodeSelection(hitNodeId);
@@ -394,21 +392,27 @@ class _GraphScreenState extends State<GraphScreen>
                 },
                 child: ValueListenableBuilder<String?>(
                   valueListenable: _draggingNodeId,
-                  builder: (context, draggingId, interactiveChild) {
-                    return InteractiveViewer(
-                      transformationController: _transformationController,
-                      boundaryMargin: const EdgeInsets.all(double.infinity),
-                      minScale: 0.1,
-                      maxScale: 5.0,
-                      panEnabled: draggingId == null,
-                      scaleEnabled: true,
-                      onInteractionStart: (details) {
-                        if (details.pointerCount >= 2) {
-                          _cancelDrag();
-                          _cancelLongPress();
-                        }
+                  builder: (context, draggingId, child) {
+                    return ValueListenableBuilder<bool>(
+                      valueListenable: _isAnimatingCamera,
+                      builder: (context, isAnimating, interactiveChild) {
+                        return InteractiveViewer(
+                          transformationController: _transformationController,
+                          boundaryMargin: const EdgeInsets.all(double.infinity),
+                          minScale: 0.1,
+                          maxScale: 5.0,
+                          panEnabled: draggingId == null && !isAnimating,
+                          scaleEnabled: true,
+                          onInteractionStart: (details) {
+                            if (details.pointerCount >= 2) {
+                              _cancelDrag();
+                              _cancelLongPress();
+                            }
+                          },
+                          child: interactiveChild!,
+                        );
                       },
-                      child: interactiveChild!,
+                      child: child,
                     );
                   },
                   child: SizedBox(
