@@ -139,7 +139,7 @@ class GraphNode {
         (json['position']['dx'] as num).toDouble(),
         (json['position']['dy'] as num).toDouble(),
       ),
-      label: json['label'] as String,
+      label: json['name'] as String? ?? '', //json['label'] as String,
       name: json['name'] as String? ?? '',
       selfGeneratedMoney: (json['selfGeneratedMoney'] as num).toDouble(),
       mass: (json['mass'] as num).toDouble(),
