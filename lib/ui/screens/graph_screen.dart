@@ -62,7 +62,7 @@ class _GraphScreenState extends State<GraphScreen>
   // --- Long press state ---
   String? _longPressNodeId;
   Timer? _longPressTimer;
-  static const _longPressDuration = Duration(seconds: 2);
+  static const _longPressDuration = Duration(milliseconds: 850);
 
   bool _isDebugPanelOpen = false;
 

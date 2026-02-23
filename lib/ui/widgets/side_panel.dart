@@ -103,7 +103,7 @@ class _PanelContent extends StatelessWidget {
   ) {
     return ValueListenableBuilder<int>(
       valueListenable: gds.visibleTickNotifier,
-      builder: (context, _, __) {
+      builder: (context, _, _) {
         final masters = gds.masterNodes;
         final totalNodes = gds.allNodes.length;
         final totalMoney = gds.allNodes.values.fold(
@@ -114,7 +114,7 @@ class _PanelContent extends StatelessWidget {
         return Column(
           children: [
             _buildHeader(
-              title: 'Твої ноди',
+              title: 'Твої реферали',
               onClose: () => sns.closePanel(),
               trailing: isEditMode
                   ? IconButton(
@@ -176,14 +176,14 @@ class _PanelContent extends StatelessWidget {
               if (isEditMode) ...[
                 _buildActionButton(
                   icon: Icons.add_circle_outline,
-                  label: 'Create Slave Node',
+                  label: 'Створити ноду реферала',
                   color: Colors.amber,
                   onTap: () => gds.createSlaveNode(node.id),
                 ),
                 const SizedBox(height: 12),
                 _buildActionButton(
                   icon: Icons.delete_outline,
-                  label: 'Delete Node',
+                  label: 'Видалити реферала',
                   color: Colors.redAccent,
                   onTap: () {
                     _showDeleteConfirm(context, node, gds, sns);
@@ -216,7 +216,7 @@ class _PanelContent extends StatelessWidget {
                   padding: EdgeInsets.only(top: 20),
                   child: Center(
                     child: Text(
-                      'Немає підпорядкованих нод',
+                      'Немає підпорядкованих рефералів',
                       style: TextStyle(color: Colors.white38, fontSize: 13),
                     ),
                   ),
@@ -334,21 +334,21 @@ class _PanelContent extends StatelessWidget {
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF252525),
         title: const Text(
-          'Delete Node?',
+          'Видалити реферала?',
           style: TextStyle(color: Colors.white),
         ),
         content: Text(
-          'This node has ${node.childrenIds.length} children. Deleting it will also delete all descendants.',
+          'Цей реферал має ${node.childrenIds.length} підлеглих. Видалення цього реферала призведе до видалення всіх його підлеглих.',
           style: const TextStyle(color: Colors.white70),
         ),
         actions: [
           TextButton(
-            child: const Text('Cancel'),
+            child: const Text('Скасувати'),
             onPressed: () => Navigator.of(ctx).pop(),
           ),
           TextButton(
             child: const Text(
-              'Delete',
+              'Видалити',
               style: TextStyle(color: Colors.redAccent),
             ),
             onPressed: () {
@@ -384,7 +384,15 @@ class _GlobalStatsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _infoRow(Icons.account_tree, 'Всього нод', '$totalNodes'),
+          _infoRow(
+            Icons.account_tree,
+            'Всього рефералів',
+            '$totalNodes ${totalNodes % 10 == 1 && totalNodes % 100 != 11
+                ? 'реферал'
+                : (totalNodes % 10 >= 2 && totalNodes % 10 <= 4 && (totalNodes % 100 < 10 || totalNodes % 100 >= 20))
+                ? 'реферала'
+                : 'рефералів'}',
+          ),
           const SizedBox(height: 12),
           _infoRow(
             Icons.monetization_on,
@@ -450,7 +458,7 @@ class _InfoCard extends StatelessWidget {
           const SizedBox(height: 12),
           _infoRow(
             Icons.people_alt,
-            'Від мережі (slave)',
+            'Від мережі',
             '${descendantsMoney.toStringAsFixed(0)} ₴',
           ),
           const SizedBox(height: 12),
@@ -523,7 +531,11 @@ class _NodeListTile extends StatelessWidget {
       ),
       title: Text(node.name, style: const TextStyle(color: Colors.white)),
       subtitle: Text(
-        '${totalMoney.toStringAsFixed(0)} ₴  •  ${node.childrenIds.length} slave',
+        '${totalMoney.toStringAsFixed(0)} ₴  •  ${node.childrenIds.length} ${node.childrenIds.length % 10 == 1 && node.childrenIds.length % 100 != 11
+            ? 'реферал'
+            : (node.childrenIds.length % 10 >= 2 && node.childrenIds.length % 10 <= 4 && (node.childrenIds.length % 100 < 10 || node.childrenIds.length % 100 >= 20))
+            ? 'реферала'
+            : 'рефералів'}',
         style: const TextStyle(color: Colors.white38, fontSize: 11),
       ),
       trailing: node.childrenIds.isNotEmpty
@@ -594,7 +606,7 @@ class _NodeEditorState extends State<_NodeEditor> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'EDIT NODE',
+            'Редагувати реферала',
             style: TextStyle(
               color: Colors.amber,
               fontSize: 12,
@@ -606,7 +618,7 @@ class _NodeEditorState extends State<_NodeEditor> {
             controller: _nameCtrl,
             style: const TextStyle(color: Colors.white),
             decoration: const InputDecoration(
-              labelText: 'Name',
+              labelText: 'Ім\'я',
               labelStyle: TextStyle(color: Colors.white54),
               enabledBorder: UnderlineInputBorder(
                 borderSide: BorderSide(color: Colors.white24),
@@ -623,7 +635,7 @@ class _NodeEditorState extends State<_NodeEditor> {
             style: const TextStyle(color: Colors.white),
             keyboardType: TextInputType.number,
             decoration: const InputDecoration(
-              labelText: 'Self Generated Money',
+              labelText: 'Власні генерування',
               labelStyle: TextStyle(color: Colors.white54),
               enabledBorder: UnderlineInputBorder(
                 borderSide: BorderSide(color: Colors.white24),
@@ -640,7 +652,7 @@ class _NodeEditorState extends State<_NodeEditor> {
           const Align(
             alignment: Alignment.centerRight,
             child: Text(
-              'Changes auto-saved',
+              'Зміни автоматично зберігаються',
               style: TextStyle(
                 color: Colors.white24,
                 fontSize: 10,

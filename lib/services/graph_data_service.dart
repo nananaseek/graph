@@ -216,8 +216,8 @@ class GraphDataService {
     final node = GraphNode(
       id: id,
       position: const Offset(100, 100),
-      label: 'New Root',
-      name: 'New Root',
+      label: 'Новий реферал',
+      name: 'Новий реферал',
       selfGeneratedMoney: 0,
     );
     allNodes[id] = node;
@@ -235,8 +235,8 @@ class GraphDataService {
     final node = GraphNode(
       id: id,
       position: parent.position, // Start at parent position (will expand out)
-      label: 'New Slave',
-      name: 'New Slave',
+      label: 'Новий реферал',
+      name: 'Новий реферал',
       selfGeneratedMoney: 0,
       parentId: parentId,
     );
@@ -347,7 +347,7 @@ class GraphDataService {
           'graph_export_${DateTime.now().millisecondsSinceEpoch}.json';
 
       await FilePicker.platform.saveFile(
-        dialogTitle: 'Save Graph',
+        dialogTitle: 'Зберегти граф',
         fileName: fileName,
         type: FileType.custom,
         allowedExtensions: ['json'],

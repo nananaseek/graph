@@ -109,6 +109,6 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
 
     // Verify sidebar text is visible
-    expect(find.text('Твої ноди'), findsOneWidget);
+    expect(find.text('Твої реферали'), findsOneWidget);
   });
 }

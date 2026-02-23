@@ -19,16 +19,17 @@ class DebugPanel extends StatelessWidget {
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
+          SizedBox(height: 27),
           // Header
           Padding(
-            padding: const EdgeInsets.fromLTRB(15.0, 25.0, 15.0, 0.0),
+            padding: const EdgeInsets.fromLTRB(15.0, 15.0, 15.0, 0.0),
             child: Row(
               children: [
                 const Icon(Icons.bug_report, color: Colors.amber),
                 const SizedBox(width: 8),
                 const Expanded(
                   child: Text(
-                    'DEBUG MENU',
+                    'ДЕБАГ-МЕНЮ',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 18,
@@ -53,11 +54,11 @@ class DebugPanel extends StatelessWidget {
             builder: (context, isEdit, _) {
               return SwitchListTile(
                 title: const Text(
-                  'Edit Mode',
+                  'Режим редагування',
                   style: TextStyle(color: Colors.white),
                 ),
                 subtitle: const Text(
-                  'Enable create/delete nodes',
+                  'Дозволити створення/видалення рефералів',
                   style: TextStyle(color: Colors.white54, fontSize: 12),
                 ),
                 value: isEdit,
@@ -72,11 +73,11 @@ class DebugPanel extends StatelessWidget {
             builder: (context, showAll, _) {
               return SwitchListTile(
                 title: const Text(
-                  'Show All Nodes',
+                  'Показати всі рівні',
                   style: TextStyle(color: Colors.white),
                 ),
                 subtitle: const Text(
-                  'Ignore visibility rules',
+                  'Ігнорувати правила видимості',
                   style: TextStyle(color: Colors.white54, fontSize: 12),
                 ),
                 value: showAll,
@@ -102,7 +103,7 @@ class DebugPanel extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Text(
-                  'Actions',
+                  'Дії',
                   style: TextStyle(
                     color: Colors.white54,
                     fontWeight: FontWeight.bold,
@@ -116,7 +117,7 @@ class DebugPanel extends StatelessWidget {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('Graph exported successfully!'),
+                            content: Text('Граф успішно експортовано!'),
                             backgroundColor: Colors.green,
                           ),
                         );
@@ -125,7 +126,7 @@ class DebugPanel extends StatelessWidget {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('Export failed: $e'),
+                            content: Text('Помилка експорту: $e'),
                             backgroundColor: Colors.red,
                           ),
                         );
@@ -133,7 +134,7 @@ class DebugPanel extends StatelessWidget {
                     }
                   },
                   icon: const Icon(Icons.download),
-                  label: const Text('Export Graph JSON'),
+                  label: const Text('Експорт графа (JSON)'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blueGrey,
                     foregroundColor: Colors.white,
@@ -147,7 +148,7 @@ class DebugPanel extends StatelessWidget {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('Graph imported successfully!'),
+                            content: Text('Граф успішно імпортовано!'),
                             backgroundColor: Colors.green,
                           ),
                         );
@@ -156,7 +157,7 @@ class DebugPanel extends StatelessWidget {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('Import failed: $e'),
+                            content: Text('Помилка імпорту: $e'),
                             backgroundColor: Colors.red,
                           ),
                         );
@@ -164,7 +165,7 @@ class DebugPanel extends StatelessWidget {
                     }
                   },
                   icon: const Icon(Icons.upload),
-                  label: const Text('Import Graph JSON'),
+                  label: const Text('Імпорт графа (JSON)'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blueGrey,
                     foregroundColor: Colors.white,
@@ -183,7 +184,7 @@ class DebugPanel extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Graph Stats',
+                  'Статистика графа',
                   style: TextStyle(
                     color: Colors.white54,
                     fontWeight: FontWeight.bold,
@@ -197,20 +198,20 @@ class DebugPanel extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Total Nodes: ${graphService.allNodes.length}',
+                          'Усього рефералів: ${graphService.allNodes.length}',
                           style: const TextStyle(color: Colors.white),
                         ),
                         Text(
-                          'Total Links: ${graphService.allLinks.length}',
+                          'Усього зв\'язків: ${graphService.allLinks.length}',
                           style: const TextStyle(color: Colors.white),
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Visible Nodes: ${graphService.visibleNodes.length}',
+                          'Видимих рефералів: ${graphService.visibleNodes.length}',
                           style: const TextStyle(color: Colors.amber),
                         ),
                         Text(
-                          'Visible Links: ${graphService.visibleLinks.length}',
+                          'Видимих зв\'язків: ${graphService.visibleLinks.length}',
                           style: const TextStyle(color: Colors.amber),
                         ),
                       ],
