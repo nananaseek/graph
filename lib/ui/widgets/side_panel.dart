@@ -57,7 +57,6 @@ class _PanelContent extends StatelessWidget {
   const _PanelContent({required this.stack});
 
   @override
-  @override
   Widget build(BuildContext context) {
     final graphDataService = getIt<GraphDataService>();
     final selectedNodeService = getIt<SelectedNodeService>();
@@ -66,31 +65,36 @@ class _PanelContent extends StatelessWidget {
     return ValueListenableBuilder<bool>(
       valueListenable: debugService.isEditMode,
       builder: (context, isEditMode, _) {
-        // Root level — show master nodes list
-        if (stack.isEmpty) {
-          return _buildRootView(
-            graphDataService,
-            selectedNodeService,
-            isEditMode,
-          );
-        }
+        return ValueListenableBuilder<int>(
+          valueListenable: graphDataService.visibleTickNotifier,
+          builder: (context, _, _) {
+            // Root level — show master nodes list
+            if (stack.isEmpty) {
+              return _buildRootView(
+                graphDataService,
+                selectedNodeService,
+                isEditMode,
+              );
+            }
 
-        final currentNodeId = stack.last;
-        final currentNode = graphDataService.getNode(currentNodeId);
-        if (currentNode == null) {
-          return _buildRootView(
-            graphDataService,
-            selectedNodeService,
-            isEditMode,
-          );
-        }
+            final currentNodeId = stack.last;
+            final currentNode = graphDataService.getNode(currentNodeId);
+            if (currentNode == null) {
+              return _buildRootView(
+                graphDataService,
+                selectedNodeService,
+                isEditMode,
+              );
+            }
 
-        return _buildNodeDetailView(
-          context,
-          currentNode,
-          graphDataService,
-          selectedNodeService,
-          isEditMode,
+            return _buildNodeDetailView(
+              context,
+              currentNode,
+              graphDataService,
+              selectedNodeService,
+              isEditMode,
+            );
+          },
         );
       },
     );
@@ -101,46 +105,41 @@ class _PanelContent extends StatelessWidget {
     SelectedNodeService sns,
     bool isEditMode,
   ) {
-    return ValueListenableBuilder<int>(
-      valueListenable: gds.visibleTickNotifier,
-      builder: (context, _, _) {
-        final masters = gds.masterNodes;
-        final totalNodes = gds.allNodes.length;
-        final totalMoney = gds.allNodes.values.fold(
-          0.0,
-          (sum, node) => sum + node.selfGeneratedMoney,
-        );
+    final masters = gds.masterNodes;
+    final totalNodes = gds.allNodes.length;
+    final totalMoney = gds.allNodes.values.fold(
+      0.0,
+      (sum, node) => sum + node.selfGeneratedMoney,
+    );
 
-        return Column(
-          children: [
-            _buildHeader(
-              title: 'Твої реферали',
-              onClose: () => sns.closePanel(),
-              trailing: isEditMode
-                  ? IconButton(
-                      icon: const Icon(Icons.add, color: Colors.amber),
-                      tooltip: 'Create Root Node',
-                      onPressed: () => gds.createRootNode(),
-                    )
-                  : null,
-            ),
-            _GlobalStatsCard(totalNodes: totalNodes, totalMoney: totalMoney),
-            const Divider(color: Colors.white24, height: 1),
-            Expanded(
-              child: ListView.builder(
-                itemCount: masters.length,
-                itemBuilder: (context, index) {
-                  final node = masters[index];
-                  return _NodeListTile(
-                    node: node,
-                    onTap: () => _onNodeTap(node, sns),
-                  );
-                },
-              ),
-            ),
-          ],
-        );
-      },
+    return Column(
+      children: [
+        _buildHeader(
+          title: 'Твої реферали',
+          onClose: () => sns.closePanel(),
+          trailing: isEditMode
+              ? IconButton(
+                  icon: const Icon(Icons.add, color: Colors.amber),
+                  tooltip: 'Create Root Node',
+                  onPressed: () => gds.createRootNode(),
+                )
+              : null,
+        ),
+        _GlobalStatsCard(totalNodes: totalNodes, totalMoney: totalMoney),
+        const Divider(color: Colors.white24, height: 1),
+        Expanded(
+          child: ListView.builder(
+            itemCount: masters.length,
+            itemBuilder: (context, index) {
+              final node = masters[index];
+              return _NodeListTile(
+                node: node,
+                onTap: () => _onNodeTap(node, sns),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
