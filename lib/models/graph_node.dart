@@ -45,6 +45,23 @@ class GraphNode {
   /// Parent node ID (null = master / root node)
   String? parentId;
 
+  int? _depthCache;
+  int get depth {
+    if (_depthCache != null) return _depthCache!;
+    if (parentId == null) {
+      _depthCache = 0;
+      return 0;
+    }
+    try {
+      final graphDataService = getIt<GraphDataService>();
+      final parent = graphDataService.getNode(parentId!);
+      _depthCache = (parent?.depth ?? -1) + 1;
+      return _depthCache!;
+    } catch (e) {
+      return 0;
+    }
+  }
+
   /// Children (slave) node IDs
   List<String> childrenIds;
 

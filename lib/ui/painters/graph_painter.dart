@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/graph_node.dart';
 import '../../models/graph_link.dart';
+import '../../core/app_colors.dart';
 
 class GraphPainter extends CustomPainter {
   final Map<String, GraphNode> nodes;
@@ -105,6 +106,11 @@ class GraphPainter extends CustomPainter {
         canvas.drawCircle(node.position, scaledRadius, _selectedNodePaint);
         canvas.drawCircle(node.position, scaledRadius, _selectedBorderPaint);
       } else {
+        final nodeColor = AppColors.getGenerationColor(node.depth);
+        _nodePaint.color = nodeColor;
+        // 0.25 opacity for glow
+        _nodeGlowPaint.color = nodeColor.withAlpha((255 * 0.25).toInt());
+
         canvas.drawCircle(node.position, scaledRadius + 5, _nodeGlowPaint);
         canvas.drawCircle(node.position, scaledRadius, _nodePaint);
       }
