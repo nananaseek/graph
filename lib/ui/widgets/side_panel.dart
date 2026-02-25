@@ -157,7 +157,7 @@ class _PanelContent extends StatelessWidget {
         _buildHeader(
           title: node.name,
           onClose: () => sns.closePanel(),
-          onBack: () => sns.navigateBack(),
+          onBack: () => _navigateBackAndFocus(sns),
         ),
         const Divider(color: Colors.white24),
         Expanded(
@@ -283,6 +283,22 @@ class _PanelContent extends StatelessWidget {
     }
   }
 
+  void _navigateBackAndFocus(SelectedNodeService sns) {
+    sns.navigateBack();
+    final parentId = sns.selectedNodeId.value;
+    if (parentId != null) {
+      final cameraService = getIt<CameraService>();
+      final graphDataService = getIt<GraphDataService>();
+      final visibleNode = graphDataService.visibleNodes[parentId];
+      if (visibleNode != null) {
+        final screenSize = SidePanel._cachedScreenSize;
+        if (screenSize != null) {
+          cameraService.animateTo(visibleNode.position, screenSize);
+        }
+      }
+    }
+  }
+
   Widget _buildActionButton({
     required IconData icon,
     required String label,
@@ -323,7 +339,7 @@ class _PanelContent extends StatelessWidget {
     final hasChildren = node.childrenIds.isNotEmpty;
 
     if (!hasChildren) {
-      sns.navigateBack();
+      _navigateBackAndFocus(sns);
       gds.deleteNode(node.id);
       return;
     }
@@ -352,7 +368,7 @@ class _PanelContent extends StatelessWidget {
             ),
             onPressed: () {
               Navigator.of(ctx).pop();
-              sns.navigateBack();
+              _navigateBackAndFocus(sns);
               gds.deleteNode(node.id);
             },
           ),
@@ -407,18 +423,30 @@ class _GlobalStatsCard extends StatelessWidget {
     return Row(
       children: [
         Icon(icon, color: const Color(0xFF80cde3), size: 18),
-        const SizedBox(width: 10),
-        Text(
-          label,
-          style: const TextStyle(color: Colors.white54, fontSize: 13),
+        const SizedBox(width: 8),
+        Expanded(
+          flex: 3,
+          child: Text(
+            label,
+            style: const TextStyle(color: Colors.white54, fontSize: 13),
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
-        const Spacer(),
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
+        const SizedBox(width: 4),
+        Expanded(
+          flex: 2,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerRight,
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ),
       ],
@@ -491,18 +519,30 @@ class _InfoCard extends StatelessWidget {
     return Row(
       children: [
         Icon(icon, color: const Color(0xFF80cde3), size: 18),
-        const SizedBox(width: 10),
-        Text(
-          label,
-          style: const TextStyle(color: Colors.white54, fontSize: 13),
+        const SizedBox(width: 8),
+        Expanded(
+          flex: 3,
+          child: Text(
+            label,
+            style: const TextStyle(color: Colors.white54, fontSize: 13),
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
-        const Spacer(),
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
+        const SizedBox(width: 4),
+        Expanded(
+          flex: 2,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerRight,
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ),
       ],

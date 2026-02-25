@@ -83,7 +83,7 @@ void main() {
       expect(graphDataService.allNodes.length, initialCount + 1);
 
       final newNode = graphDataService.allNodes.values.last;
-      expect(newNode.label, 'New Root');
+      expect(newNode.label, 'Новий реферал');
       expect(newNode.parentId, null);
       // Should be in visible nodes (roots always visible)
       expect(graphDataService.visibleNodes.containsKey(newNode.id), true);

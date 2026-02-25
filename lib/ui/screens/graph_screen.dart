@@ -281,6 +281,11 @@ class _GraphScreenState extends State<GraphScreen>
       if (DebugConstants.enableNodeSelectionLogging) {
         _logger.logNodeSelection(hitNodeId);
       }
+
+      final visibleNode = nodes[hitNodeId];
+      if (visibleNode != null) {
+        _cameraService.animateTo(visibleNode.position, _screenSize);
+      }
     }
   }
 
