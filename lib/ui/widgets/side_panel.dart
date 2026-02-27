@@ -6,6 +6,8 @@ import '../../services/camera_service.dart';
 import '../../services/debug_service.dart';
 import '../../models/graph_node.dart';
 
+enum NodeSortOption { defaultSort, nameAsc, profitDesc }
+
 class SidePanel extends StatelessWidget {
   final double screenWidth;
 
@@ -51,10 +53,77 @@ class SidePanel extends StatelessWidget {
   }
 }
 
-class _PanelContent extends StatelessWidget {
+class _PanelContent extends StatefulWidget {
   final List<String> stack;
 
   const _PanelContent({required this.stack});
+
+  @override
+  State<_PanelContent> createState() => _PanelContentState();
+}
+
+class _PanelContentState extends State<_PanelContent> {
+  String _searchQuery = '';
+  NodeSortOption _sortOption = NodeSortOption.defaultSort;
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant _PanelContent oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reset search when navigating between nodes
+    if (oldWidget.stack.length != widget.stack.length ||
+        (oldWidget.stack.isNotEmpty &&
+            widget.stack.isNotEmpty &&
+            oldWidget.stack.last != widget.stack.last)) {
+      _searchQuery = '';
+      _searchController.clear();
+      _sortOption = NodeSortOption.defaultSort;
+    }
+  }
+
+  List<GraphNode> _filterAndSortNodes(
+    List<GraphNode> nodes,
+    GraphDataService gds,
+  ) {
+    var result = nodes;
+
+    // 1. Filter
+    if (_searchQuery.isNotEmpty) {
+      final query = _searchQuery.toLowerCase();
+      result = result
+          .where((node) => node.name.toLowerCase().contains(query))
+          .toList();
+    } else {
+      result = result.toList(); // Copy to avoid mutating original list
+    }
+
+    // 2. Sort
+    switch (_sortOption) {
+      case NodeSortOption.nameAsc:
+        result.sort(
+          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+        );
+        break;
+      case NodeSortOption.profitDesc:
+        result.sort((a, b) {
+          final moneyA = a.selfGeneratedMoney + gds.getDescendantsMoney(a.id);
+          final moneyB = b.selfGeneratedMoney + gds.getDescendantsMoney(b.id);
+          return moneyB.compareTo(moneyA);
+        });
+        break;
+      case NodeSortOption.defaultSort:
+        // Do nothing, keep original order
+        break;
+    }
+
+    return result;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -69,7 +138,7 @@ class _PanelContent extends StatelessWidget {
           valueListenable: graphDataService.visibleTickNotifier,
           builder: (context, _, _) {
             // Root level — show master nodes list
-            if (stack.isEmpty) {
+            if (widget.stack.isEmpty) {
               return _buildRootView(
                 graphDataService,
                 selectedNodeService,
@@ -77,7 +146,7 @@ class _PanelContent extends StatelessWidget {
               );
             }
 
-            final currentNodeId = stack.last;
+            final currentNodeId = widget.stack.last;
             final currentNode = graphDataService.getNode(currentNodeId);
             if (currentNode == null) {
               return _buildRootView(
@@ -100,12 +169,113 @@ class _PanelContent extends StatelessWidget {
     );
   }
 
+  Widget _buildSearchAndFilterBlock() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: Row(
+        children: [
+          Expanded(
+            child: SizedBox(
+              height: 48,
+              child: TextField(
+                controller: _searchController,
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value;
+                  });
+                },
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: 'Пошук за іменем...',
+                  hintStyle: const TextStyle(color: Colors.white38),
+                  prefixIcon: const Icon(
+                    Icons.search,
+                    color: Colors.white54,
+                    size: 20,
+                  ),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(
+                            Icons.clear,
+                            color: Colors.white54,
+                            size: 18,
+                          ),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() {
+                              _searchQuery = '';
+                            });
+                          },
+                        )
+                      : null,
+                  filled: true,
+                  fillColor: Colors.white.withAlpha(15), // M3 search bar style
+                  contentPadding: EdgeInsets.zero,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          PopupMenuButton<NodeSortOption>(
+            initialValue: _sortOption,
+            tooltip: 'Сортування',
+            icon: Icon(
+              Icons.filter_list,
+              color: _sortOption != NodeSortOption.defaultSort
+                  ? const Color(0xFF80cde3)
+                  : Colors.white54,
+            ),
+            color: const Color(0xFF252525),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            onSelected: (NodeSortOption result) {
+              setState(() {
+                _sortOption = result;
+              });
+            },
+            itemBuilder: (BuildContext context) =>
+                <PopupMenuEntry<NodeSortOption>>[
+                  const PopupMenuItem<NodeSortOption>(
+                    value: NodeSortOption.defaultSort,
+                    child: Text(
+                      'За замовчуванням',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                  const PopupMenuItem<NodeSortOption>(
+                    value: NodeSortOption.nameAsc,
+                    child: Text(
+                      'За іменем (А-Я)',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                  const PopupMenuItem<NodeSortOption>(
+                    value: NodeSortOption.profitDesc,
+                    child: Text(
+                      'За прибутком (спад.)',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildRootView(
     GraphDataService gds,
     SelectedNodeService sns,
     bool isEditMode,
   ) {
-    final masters = gds.masterNodes;
+    final rawMasters = gds.masterNodes;
+    final processedMasters = _filterAndSortNodes(rawMasters, gds);
+
     final totalNodes = gds.allNodes.length;
     final totalMoney = gds.allNodes.values.fold(
       0.0,
@@ -126,18 +296,28 @@ class _PanelContent extends StatelessWidget {
               : null,
         ),
         _GlobalStatsCard(totalNodes: totalNodes, totalMoney: totalMoney),
-        const Divider(color: Colors.white24, height: 1),
+
+        _buildSearchAndFilterBlock(),
+
+        const Divider(color: Colors.white12, height: 1),
         Expanded(
-          child: ListView.builder(
-            itemCount: masters.length,
-            itemBuilder: (context, index) {
-              final node = masters[index];
-              return _NodeListTile(
-                node: node,
-                onTap: () => _onNodeTap(node, sns),
-              );
-            },
-          ),
+          child: processedMasters.isEmpty
+              ? const Center(
+                  child: Text(
+                    'Нічого не знайдено',
+                    style: TextStyle(color: Colors.white38, fontSize: 13),
+                  ),
+                )
+              : ListView.builder(
+                  itemCount: processedMasters.length,
+                  itemBuilder: (context, index) {
+                    final node = processedMasters[index];
+                    return _NodeListTile(
+                      node: node,
+                      onTap: () => _onNodeTap(node, sns),
+                    );
+                  },
+                ),
         ),
       ],
     );
@@ -150,7 +330,8 @@ class _PanelContent extends StatelessWidget {
     SelectedNodeService sns,
     bool isEditMode,
   ) {
-    final children = gds.getChildren(node.id);
+    final rawChildren = gds.getChildren(node.id);
+    final processedChildren = _filterAndSortNodes(rawChildren, gds);
 
     return Column(
       children: [
@@ -159,60 +340,85 @@ class _PanelContent extends StatelessWidget {
           onClose: () => sns.closePanel(),
           onBack: () => _navigateBackAndFocus(sns),
         ),
-        const Divider(color: Colors.white24),
+        const Divider(color: Colors.white12, height: 1),
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: EdgeInsets.zero,
             children: [
-              const SizedBox(height: 12),
-              if (isEditMode)
-                _NodeEditor(node: node, onUpdate: gds.updateNode)
-              else
-                _InfoCard(node: node),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 16),
+                    if (isEditMode)
+                      _NodeEditor(node: node, onUpdate: gds.updateNode)
+                    else
+                      _InfoCard(node: node),
 
-              const SizedBox(height: 20),
+                    const SizedBox(height: 20),
 
-              if (isEditMode) ...[
-                _buildActionButton(
-                  icon: Icons.add_circle_outline,
-                  label: 'Створити ноду реферала',
-                  color: Colors.amber,
-                  onTap: () => gds.createSlaveNode(node.id),
+                    if (isEditMode) ...[
+                      _buildActionButton(
+                        icon: Icons.add_circle_outline,
+                        label: 'Створити ноду реферала',
+                        color: Colors.amber,
+                        onTap: () => gds.createSlaveNode(node.id),
+                      ),
+                      const SizedBox(height: 12),
+                      _buildActionButton(
+                        icon: Icons.delete_outline,
+                        label: 'Видалити реферала',
+                        color: Colors.redAccent,
+                        onTap: () {
+                          _showDeleteConfirm(context, node, gds, sns);
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                  ],
                 ),
-                const SizedBox(height: 12),
-                _buildActionButton(
-                  icon: Icons.delete_outline,
-                  label: 'Видалити реферала',
-                  color: Colors.redAccent,
-                  onTap: () {
-                    _showDeleteConfirm(context, node, gds, sns);
-                  },
-                ),
-                const SizedBox(height: 20),
-                const Divider(color: Colors.white24),
-                const SizedBox(height: 12),
-              ],
+              ),
 
-              if (children.isNotEmpty) ...[
-                const Text(
-                  'Підпорядковані ноди',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                ...children.map(
-                  (child) => _NodeListTile(
-                    node: child,
-                    onTap: () => _onNodeTap(child, sns),
-                  ),
-                ),
-              ],
-              if (children.isEmpty)
+              if (rawChildren.isNotEmpty) ...[
                 const Padding(
-                  padding: EdgeInsets.only(top: 20),
+                  padding: EdgeInsets.only(
+                    left: 16.0,
+                    right: 16.0,
+                    bottom: 8.0,
+                    top: 4.0,
+                  ),
+                  child: Text(
+                    'Підпорядковані ноди',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                _buildSearchAndFilterBlock(),
+                const Divider(color: Colors.white12, height: 1),
+                if (processedChildren.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 24),
+                    child: Center(
+                      child: Text(
+                        'Нічого не знайдено',
+                        style: TextStyle(color: Colors.white38, fontSize: 13),
+                      ),
+                    ),
+                  )
+                else
+                  ...processedChildren.map(
+                    (child) => _NodeListTile(
+                      node: child,
+                      onTap: () => _onNodeTap(child, sns),
+                    ),
+                  ),
+              ],
+              if (rawChildren.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.only(top: 32),
                   child: Center(
                     child: Text(
                       'Немає підпорядкованих рефералів',
@@ -220,6 +426,7 @@ class _PanelContent extends StatelessWidget {
                     ),
                   ),
                 ),
+              const SizedBox(height: 24),
             ],
           ),
         ),
@@ -307,13 +514,13 @@ class _PanelContent extends StatelessWidget {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(16), // Material 3
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
+          color: color.withAlpha(20), // M3 softer color
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withAlpha(40)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -348,6 +555,9 @@ class _PanelContent extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF252525),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ), // M3 look
         title: const Text(
           'Видалити реферала?',
           style: TextStyle(color: Colors.white),
@@ -358,14 +568,25 @@ class _PanelContent extends StatelessWidget {
         ),
         actions: [
           TextButton(
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.white70,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
             child: const Text('Скасувати'),
             onPressed: () => Navigator.of(ctx).pop(),
           ),
-          TextButton(
-            child: const Text(
-              'Видалити',
-              style: TextStyle(color: Colors.redAccent),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.redAccent.withAlpha(40),
+              foregroundColor: Colors.redAccent,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
+            child: const Text('Видалити'),
             onPressed: () {
               Navigator.of(ctx).pop();
               _navigateBackAndFocus(sns);
@@ -388,13 +609,10 @@ class _GlobalStatsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.only(left: 16.0, right: 16.0, bottom: 16.0),
+      margin: const EdgeInsets.only(left: 16.0, right: 16.0, bottom: 8.0),
       decoration: BoxDecoration(
-        color: const Color(0xFF80cde3).withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: const Color(0xFF80cde3).withValues(alpha: 0.25),
-        ),
+        color: const Color(0xFF80cde3).withAlpha(15), // M3 softer background
+        borderRadius: BorderRadius.circular(16), // M3 higher border radius
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -428,8 +646,7 @@ class _GlobalStatsCard extends StatelessWidget {
           flex: 3,
           child: Text(
             label,
-            style: const TextStyle(color: Colors.white54, fontSize: 13),
-            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Colors.white60, fontSize: 13),
           ),
         ),
         const SizedBox(width: 4),
@@ -468,11 +685,8 @@ class _InfoCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF80cde3).withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: const Color(0xFF80cde3).withValues(alpha: 0.25),
-        ),
+        color: const Color(0xFF80cde3).withAlpha(15), // M3 softer
+        borderRadius: BorderRadius.circular(16), // M3 smoother radius
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -494,7 +708,7 @@ class _InfoCard extends StatelessWidget {
             'Загалом гілка',
             '${totalMoney.toStringAsFixed(0)} ₴',
           ),
-          const Divider(color: Colors.white24, height: 24),
+          const Divider(color: Colors.white12, height: 24),
           _infoRow(Icons.link, 'Зв\'язки', '${node.connectionCount}'),
           const SizedBox(height: 12),
           _infoRow(
@@ -524,7 +738,7 @@ class _InfoCard extends StatelessWidget {
           flex: 3,
           child: Text(
             label,
-            style: const TextStyle(color: Colors.white54, fontSize: 13),
+            style: const TextStyle(color: Colors.white60, fontSize: 13),
             overflow: TextOverflow.ellipsis,
           ),
         ),
@@ -563,25 +777,38 @@ class _NodeListTile extends StatelessWidget {
         node.selfGeneratedMoney + gds.getDescendantsMoney(node.id);
 
     return ListTile(
-      leading: Icon(
-        node.childrenIds.isNotEmpty ? Icons.hub : Icons.circle,
-        color: const Color(0xFF80cde3),
-        size: 16,
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: const Color(0xFF80cde3).withAlpha(20),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          node.childrenIds.isNotEmpty ? Icons.hub : Icons.person,
+          color: const Color(0xFF80cde3),
+          size: 18,
+        ),
       ),
-      title: Text(node.name, style: const TextStyle(color: Colors.white)),
+      title: Text(
+        node.name,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
       subtitle: Text(
         '${totalMoney.toStringAsFixed(0)} ₴  •  ${node.childrenIds.length} ${node.childrenIds.length % 10 == 1 && node.childrenIds.length % 100 != 11
             ? 'реферал'
             : (node.childrenIds.length % 10 >= 2 && node.childrenIds.length % 10 <= 4 && (node.childrenIds.length % 100 < 10 || node.childrenIds.length % 100 >= 20))
             ? 'реферала'
             : 'рефералів'}',
-        style: const TextStyle(color: Colors.white38, fontSize: 11),
+        style: const TextStyle(color: Colors.white54, fontSize: 12),
       ),
       trailing: node.childrenIds.isNotEmpty
           ? const Icon(Icons.chevron_right, color: Colors.white38, size: 20)
           : null,
       onTap: onTap,
-      dense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
     );
   }
 }
@@ -637,9 +864,9 @@ class _NodeEditorState extends State<_NodeEditor> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+        color: Colors.white.withAlpha(5),
+        borderRadius: BorderRadius.circular(16), // Material 3
+        border: Border.all(color: Colors.amber.withAlpha(50)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -652,18 +879,26 @@ class _NodeEditorState extends State<_NodeEditor> {
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           TextField(
             controller: _nameCtrl,
             style: const TextStyle(color: Colors.white),
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Ім\'я',
-              labelStyle: TextStyle(color: Colors.white54),
-              enabledBorder: UnderlineInputBorder(
-                borderSide: BorderSide(color: Colors.white24),
+              labelStyle: const TextStyle(color: Colors.white54),
+              filled: true,
+              fillColor: Colors.black12,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide.none,
               ),
-              focusedBorder: UnderlineInputBorder(
-                borderSide: BorderSide(color: Colors.amber),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: Colors.amber, width: 1.5),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
               ),
             ),
             onChanged: (_) => _save(),
@@ -673,21 +908,29 @@ class _NodeEditorState extends State<_NodeEditor> {
             controller: _moneyCtrl,
             style: const TextStyle(color: Colors.white),
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Власні генерування',
-              labelStyle: TextStyle(color: Colors.white54),
-              enabledBorder: UnderlineInputBorder(
-                borderSide: BorderSide(color: Colors.white24),
+              labelStyle: const TextStyle(color: Colors.white54),
+              filled: true,
+              fillColor: Colors.black12,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide.none,
               ),
-              focusedBorder: UnderlineInputBorder(
-                borderSide: BorderSide(color: Colors.amber),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: Colors.amber, width: 1.5),
               ),
               suffixText: '₴',
-              suffixStyle: TextStyle(color: Colors.amber),
+              suffixStyle: const TextStyle(color: Colors.amber),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
             ),
             onChanged: (_) => _save(),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           const Align(
             alignment: Alignment.centerRight,
             child: Text(
