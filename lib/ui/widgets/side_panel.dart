@@ -87,11 +87,20 @@ class _PanelContentState extends State<_PanelContent> {
     }
   }
 
-  List<GraphNode> _filterAndSortNodes(
-    List<GraphNode> nodes,
+  List<GraphNode> _getDisplayNodes(
+    List<GraphNode> defaultNodes,
     GraphDataService gds,
   ) {
-    var result = nodes;
+    List<GraphNode> sourceNodes;
+
+    // If searching, search across ALL nodes in the graph
+    if (_searchQuery.isNotEmpty) {
+      sourceNodes = gds.allNodes.values.toList();
+    } else {
+      sourceNodes = defaultNodes;
+    }
+
+    var result = sourceNodes;
 
     // 1. Filter
     if (_searchQuery.isNotEmpty) {
@@ -274,7 +283,7 @@ class _PanelContentState extends State<_PanelContent> {
     bool isEditMode,
   ) {
     final rawMasters = gds.masterNodes;
-    final processedMasters = _filterAndSortNodes(rawMasters, gds);
+    final processedMasters = _getDisplayNodes(rawMasters, gds);
 
     final totalNodes = gds.allNodes.length;
     final totalMoney = gds.allNodes.values.fold(
@@ -331,7 +340,7 @@ class _PanelContentState extends State<_PanelContent> {
     bool isEditMode,
   ) {
     final rawChildren = gds.getChildren(node.id);
-    final processedChildren = _filterAndSortNodes(rawChildren, gds);
+    final processedChildren = _getDisplayNodes(rawChildren, gds);
 
     return Column(
       children: [
@@ -379,51 +388,44 @@ class _PanelContentState extends State<_PanelContent> {
                 ),
               ),
 
-              if (rawChildren.isNotEmpty) ...[
-                const Padding(
-                  padding: EdgeInsets.only(
-                    left: 16.0,
-                    right: 16.0,
-                    bottom: 8.0,
-                    top: 4.0,
-                  ),
-                  child: Text(
-                    'Підпорядковані ноди',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
+              const Padding(
+                padding: EdgeInsets.only(
+                  left: 16.0,
+                  right: 16.0,
+                  bottom: 8.0,
+                  top: 4.0,
+                ),
+                child: Text(
+                  'Підпорядковані ноди',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                _buildSearchAndFilterBlock(),
-                const Divider(color: Colors.white12, height: 1),
-                if (processedChildren.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 24),
-                    child: Center(
-                      child: Text(
-                        'Нічого не знайдено',
-                        style: TextStyle(color: Colors.white38, fontSize: 13),
-                      ),
-                    ),
-                  )
-                else
-                  ...processedChildren.map(
-                    (child) => _NodeListTile(
-                      node: child,
-                      onTap: () => _onNodeTap(child, sns),
-                    ),
-                  ),
-              ],
-              if (rawChildren.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.only(top: 32),
+              ),
+              _buildSearchAndFilterBlock(),
+              const Divider(color: Colors.white12, height: 1),
+              if (processedChildren.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 24),
                   child: Center(
                     child: Text(
-                      'Немає підпорядкованих рефералів',
-                      style: TextStyle(color: Colors.white38, fontSize: 13),
+                      _searchQuery.isNotEmpty
+                          ? 'Нічого не знайдено'
+                          : 'Немає підпорядкованих рефералів',
+                      style: const TextStyle(
+                        color: Colors.white38,
+                        fontSize: 13,
+                      ),
                     ),
+                  ),
+                )
+              else
+                ...processedChildren.map(
+                  (child) => _NodeListTile(
+                    node: child,
+                    onTap: () => _onNodeTap(child, sns),
                   ),
                 ),
               const SizedBox(height: 24),
