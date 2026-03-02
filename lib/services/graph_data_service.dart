@@ -306,7 +306,7 @@ class GraphDataService {
     final node = allNodes[nodeId];
     if (node == null) return;
 
-    if (name != null) node.name = name;
+    if (name != null) node.updateName(name);
     if (money != null) node.selfGeneratedMoney = money;
 
     visibleTickNotifier.value++;

@@ -100,7 +100,7 @@ class GraphNode {
   void _updateTextPainter() {
     textPainter = TextPainter(
       text: TextSpan(
-        text: label,
+        text: name.isNotEmpty ? name : label,
         style: TextStyle(
           color: Colors.white,
           fontSize: 11 + (mass * 1.5),
@@ -111,6 +111,12 @@ class GraphNode {
       textDirection: TextDirection.ltr,
       textAlign: TextAlign.center,
     )..layout();
+  }
+
+  void updateName(String newName) {
+    name = newName;
+    label = newName;
+    _updateTextPainter();
   }
 
   void updateSize(double totalDescendantMoney) {
