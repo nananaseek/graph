@@ -238,10 +238,8 @@ class _GraphScreenState extends State<GraphScreen>
   }
 
   Offset _getLocalOffset(Offset screenPosition) {
-    final matrix = _transformationController.value;
-    final scale = matrix.getMaxScaleOnAxis();
-    final translation = matrix.getTranslation();
-    return (screenPosition - Offset(translation.x, translation.y)) / scale;
+    // Use the InteractiveViewer's exact inverse transform matrix mapping
+    return _transformationController.toScene(screenPosition);
   }
 
   void _cancelDrag() {
@@ -255,8 +253,11 @@ class _GraphScreenState extends State<GraphScreen>
   }
 
   String? _hitTest(Offset localPosition) {
-    for (final node in nodes.values) {
-      if ((node.position - localPosition).distance <= node.radius + 15.0) {
+    final nodesList = nodes.values.toList().reversed;
+    for (final node in nodesList) {
+      if (node.appearanceScale <= 0.0) continue;
+      final scaledRadius = node.radius * node.appearanceScale;
+      if ((node.position - localPosition).distance <= scaledRadius + 10.0) {
         return node.id;
       }
     }
@@ -269,9 +270,7 @@ class _GraphScreenState extends State<GraphScreen>
     final hitNodeId = _hitTest(localPos);
 
     if (hitNodeId != null) {
-      // Select node + open panel
       _selectedNodeService.selectNode(hitNodeId);
-      // Also set focus so visibility updates
       _graphDataService.setFocus(hitNodeId);
 
       _selectedNodeService.openPanel();
@@ -297,7 +296,6 @@ class _GraphScreenState extends State<GraphScreen>
       _longPressTimer?.cancel();
       _longPressTimer = Timer(_longPressDuration, () {
         if (_longPressNodeId == hitNodeId) {
-          // Set focus on long press
           _graphDataService.setFocus(hitNodeId);
         }
         _longPressNodeId = null;
@@ -327,6 +325,7 @@ class _GraphScreenState extends State<GraphScreen>
           children: [
             // === Canvas ===
             Listener(
+              behavior: HitTestBehavior.opaque,
               onPointerDown: (PointerDownEvent details) {
                 final localTap = _getLocalOffset(details.localPosition);
                 final hitNodeId = _hitTest(localTap);
@@ -351,7 +350,6 @@ class _GraphScreenState extends State<GraphScreen>
                   _dragMoveCount++;
                   if (_dragMoveCount % 2 != 0) return;
 
-                  // Cancel long press if user moves finger
                   _cancelLongPress();
 
                   final localTap = _getLocalOffset(details.localPosition);
@@ -366,7 +364,11 @@ class _GraphScreenState extends State<GraphScreen>
               onPointerUp: (PointerUpEvent details) {
                 _cancelDrag();
               },
+              onPointerCancel: (PointerCancelEvent details) {
+                _cancelDrag();
+              },
               child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
                 // Double tap → select node + open panel + camera
                 onDoubleTapDown: (details) {
                   _handleDoubleTap(details.localPosition);
@@ -386,26 +388,21 @@ class _GraphScreenState extends State<GraphScreen>
                 child: ValueListenableBuilder<String?>(
                   valueListenable: _draggingNodeId,
                   builder: (context, draggingId, child) {
-                    return ValueListenableBuilder<bool>(
-                      valueListenable: _cameraService.isAnimating,
-                      builder: (context, isAnimating, interactiveChild) {
-                        return InteractiveViewer(
-                          transformationController: _transformationController,
-                          boundaryMargin: const EdgeInsets.all(double.infinity),
-                          minScale: 0.1,
-                          maxScale: 5.0,
-                          panEnabled: draggingId == null && !isAnimating,
-                          scaleEnabled: !isAnimating,
-                          onInteractionStart: (details) {
-                            if (details.pointerCount >= 2) {
-                              _cancelDrag();
-                              _cancelLongPress();
-                            }
-                          },
-                          child: interactiveChild!,
-                        );
+                    return InteractiveViewer(
+                      transformationController: _transformationController,
+                      boundaryMargin: const EdgeInsets.all(double.infinity),
+                      minScale: 0.1,
+                      maxScale: 5.0,
+                      panEnabled: draggingId == null,
+                      scaleEnabled: true,
+                      onInteractionStart: (details) {
+                        _cameraService.stopAnimation();
+                        if (details.pointerCount >= 2) {
+                          _cancelDrag();
+                          _cancelLongPress();
+                        }
                       },
-                      child: child,
+                      child: child!,
                     );
                   },
                   child: SizedBox(
@@ -426,12 +423,16 @@ class _GraphScreenState extends State<GraphScreen>
                         return ValueListenableBuilder<String?>(
                           valueListenable: _selectedNodeService.selectedNodeId,
                           builder: (context, selectedId, _) {
-                            return GraphRenderer(
-                              nodes: nodes,
-                              links: links,
-                              tickNotifier: _graphTickNotifier,
-                              selectedNodeId: selectedId,
-                              viewport: viewport,
+                            return Container(
+                              color: Colors
+                                  .transparent, // Crucial for tap detection over empty canvas space
+                              child: GraphRenderer(
+                                nodes: nodes,
+                                links: links,
+                                tickNotifier: _graphTickNotifier,
+                                selectedNodeId: selectedId,
+                                viewport: viewport,
+                              ),
                             );
                           },
                         );

@@ -33,18 +33,19 @@ class CameraService {
     VoidCallback? onComplete,
   }) {
     _onComplete = onComplete;
-    // Keep current scale, but enforce a minimum zoom level (e.g., 0.8) so user sees the focused node clearly.
-    double scale = controller.value.getMaxScaleOnAxis();
-    if (scale < 0.8) {
-      scale = 0.8;
-    }
+    // Current scale
+    final currentScale = controller.value.getMaxScaleOnAxis();
 
-    // Translation to center the node on screen
-    final tx = screenSize.width / 2 - nodePosition.dx * scale;
-    final ty = screenSize.height / 2 - nodePosition.dy * scale;
+    // Enforce a minimum zoom level (e.g., 0.8) for the TARGET scale
+    // If we are zoomed out too far, we want to zoom in.
+    final targetScale = currentScale < 0.8 ? 0.8 : currentScale;
 
-    final endMatrix = Matrix4.translationValues(tx, ty, 0)
-      ..multiply(Matrix4.diagonal3Values(scale, scale, 1.0));
+    // Translation to center the node on screen using the TARGET scale
+    final tx = screenSize.width / 2 - nodePosition.dx * targetScale;
+    final ty = screenSize.height / 2 - nodePosition.dy * targetScale;
+
+    final endMatrix = Matrix4.translationValues(tx, ty, 0.0)
+      ..multiply(Matrix4.diagonal3Values(targetScale, targetScale, 1.0));
 
     _startMatrix = controller.value.clone();
     _endMatrix = endMatrix;
@@ -82,11 +83,18 @@ class CameraService {
     }
 
     if (_animationProgress >= 1.0) {
-      _ticker?.stop();
-      isAnimating.value = false;
-      _onComplete?.call();
-      _onComplete = null;
+      stopAnimation();
     }
+  }
+
+  /// Stops the current animation immediately.
+  void stopAnimation() {
+    if (_ticker?.isActive ?? false) {
+      _ticker?.stop();
+    }
+    isAnimating.value = false;
+    _onComplete?.call();
+    _onComplete = null;
   }
 
   void dispose() {
