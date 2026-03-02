@@ -17,6 +17,9 @@ class CameraService {
   double _elapsedMs = 0.0;
   VoidCallback? _onComplete;
 
+  /// Expose animating state to disable canvas interactions while camera moves
+  final ValueNotifier<bool> isAnimating = ValueNotifier(false);
+
   /// Must be called once with the TickerProvider (from State mixin).
   void init(TransformationController ctrl, TickerProvider vsync) {
     controller = ctrl;
@@ -30,8 +33,11 @@ class CameraService {
     VoidCallback? onComplete,
   }) {
     _onComplete = onComplete;
-    // Keep current scale
-    final scale = controller.value.getMaxScaleOnAxis();
+    // Keep current scale, but enforce a minimum zoom level (e.g., 0.8) so user sees the focused node clearly.
+    double scale = controller.value.getMaxScaleOnAxis();
+    if (scale < 0.8) {
+      scale = 0.8;
+    }
 
     // Translation to center the node on screen
     final tx = screenSize.width / 2 - nodePosition.dx * scale;
@@ -47,6 +53,7 @@ class CameraService {
 
     _ticker?.dispose();
     _ticker = _vsync?.createTicker(_onTick);
+    isAnimating.value = true;
     _ticker?.start();
   }
 
@@ -76,6 +83,7 @@ class CameraService {
 
     if (_animationProgress >= 1.0) {
       _ticker?.stop();
+      isAnimating.value = false;
       _onComplete?.call();
       _onComplete = null;
     }
@@ -83,5 +91,6 @@ class CameraService {
 
   void dispose() {
     _ticker?.dispose();
+    isAnimating.dispose();
   }
 }

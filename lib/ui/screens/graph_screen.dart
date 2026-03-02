@@ -48,7 +48,6 @@ class _GraphScreenState extends State<GraphScreen>
   final ValueNotifier<int> _graphTickNotifier = ValueNotifier(0);
 
   final ValueNotifier<String?> _draggingNodeId = ValueNotifier(null);
-  final ValueNotifier<bool> _isAnimatingCamera = ValueNotifier(false);
   Offset? _dragOffset;
   int _dragMoveCount = 0;
 
@@ -222,7 +221,6 @@ class _GraphScreenState extends State<GraphScreen>
     _physicsEngine.dispose();
     _graphTickNotifier.dispose();
     _draggingNodeId.dispose();
-    _isAnimatingCamera.dispose();
     _graphDataService.visibleTickNotifier.removeListener(_onDataServiceChanged);
     _selectedNodeService.selectedNodeId.removeListener(_onSelectionChanged);
     _cameraService.dispose();
@@ -389,7 +387,7 @@ class _GraphScreenState extends State<GraphScreen>
                   valueListenable: _draggingNodeId,
                   builder: (context, draggingId, child) {
                     return ValueListenableBuilder<bool>(
-                      valueListenable: _isAnimatingCamera,
+                      valueListenable: _cameraService.isAnimating,
                       builder: (context, isAnimating, interactiveChild) {
                         return InteractiveViewer(
                           transformationController: _transformationController,
@@ -397,7 +395,7 @@ class _GraphScreenState extends State<GraphScreen>
                           minScale: 0.1,
                           maxScale: 5.0,
                           panEnabled: draggingId == null && !isAnimating,
-                          scaleEnabled: true,
+                          scaleEnabled: !isAnimating,
                           onInteractionStart: (details) {
                             if (details.pointerCount >= 2) {
                               _cancelDrag();
